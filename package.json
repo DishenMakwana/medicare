@@ -1,0 +1,57 @@
+{
+  "name": "medicare",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --webpack",
+    "prebuild": "prettier --write \"src/**/*.{ts,tsx}\" && eslint",
+    "build": "prettier --write \"src/**/*.{ts,tsx}\" && eslint && next build --webpack",
+    "start": "next start",
+    "lint": "eslint",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\"",
+    "prisma:generate": "bun --bun prisma generate",
+    "prisma:push": "bun --bun prisma db push",
+    "prisma:migrate": "bun --bun prisma migrate dev",
+    "prisma:migrate:create": "bun --bun prisma migrate dev --create-only",
+    "prisma:migrate:deploy": "bun --bun prisma migrate deploy",
+    "prisma:migrate:status": "bun --bun prisma migrate status",
+    "prisma:studio": "bun --bun prisma studio",
+    "prisma:migrate:prod": "npx prisma migrate deploy",
+    "prisma:create": "npx prisma migrate dev --create-only",
+    "prisma:seed": "bun run build && npx prisma db seed",
+    "prisma:seed:prod": "npx prisma db seed",
+    "prisma:status": "npx prisma migrate status"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.49.0",
+    "next": "16.3.7",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "recharts": "^3.10.1",
+    "tailwind-merge": "^3.7.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^20.19.43",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.3.7",
+    "prettier": "^3.9.9",
+    "prisma": "^6.19.3",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^5.9.3"
+  },
+  "packageManager": "bun@1.4.0",
+  "ignoreScripts": [
+    "sharp",
+    "unrs-resolver"
+  ],
+  "trustedDependencies": [
+    "sharp",
+    "unrs-resolver"
+  ]
+}

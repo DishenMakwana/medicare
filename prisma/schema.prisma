@@ -1,0 +1,145 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  engineType = "binary"
+}
+
+model FamilyMember {
+  id          Int            @id @default(autoincrement())
+  customId    String?        // Custom identifier e.g. "member-1790776892228"
+  name        String         
+  aliases     String?        
+  gender      String?        // "Female", "Male", "Other"
+  dateOfBirth DateTime?
+  ageYears    Int?           // Fallback when DOB is not specified
+  bloodGroup  String?        // e.g. "B+", "O+", "A-"
+  relation    String?        // "Mother", "Father", "Self", "Spouse", "Child"
+  notes       String?
+  avatarUrl   String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  reports     MedicalReport[]
+  vitals      DailyVital[]
+
+  @@index([name])
+  @@index([customId])
+}
+
+model MedicalReport {
+  id              Int                @id @default(autoincrement())
+  customId        String?            // Custom identifier e.g. "report-1790776892228"
+  familyMemberId  Int
+  
+  title           String             // e.g. "Complete Blood Count & Liver Profile"
+  labName         String?            // Lab or diagnostic provider name
+  registrationNo  String?            // Patient registration / specimen identifier
+  reportDate      DateTime           // Date of report
+  collectionDate  DateTime?          // Date & time sample was collected
+  doctorRef       String?            // Referring doctor / clinic
+  rawPatientName  String?            // Patient name as printed on report sheet
+  overallStatus   String?            // "NORMAL", "ATTENTION_NEEDED", "CRITICAL"
+  notes           String?
+  
+  familyMember    FamilyMember       @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  images          ReportImage[]
+  parameters      ReportParameter[]
+  
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([familyMemberId, reportDate])
+  @@index([customId])
+}
+
+model ReportImage {
+  id          Int           @id @default(autoincrement())
+  customId    String?       // Custom identifier e.g. "img-1790776892228-0"
+  reportId    Int
+  imageUrl    String        // File URL or base64
+  pageNumber  Int           @default(1)
+  ocrStatus   String        @default("COMPLETED")
+  createdAt   DateTime      @default(now())
+
+  report      MedicalReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  @@index([reportId])
+  @@index([customId])
+}
+
+model ReportParameter {
+  id              Int           @id @default(autoincrement())
+  customId        String?       // Custom identifier e.g. "param-1790776892228-0"
+  reportId        Int
+  
+  category        String        // e.g. "CBC", "Lipid Profile", "Liver Function", "Metabolic", "Smear"
+  paramName       String        // e.g. "Hemoglobin", "Serum Globulin", "Fasting Glucose"
+  paramSlug       String        // Standardized slug e.g. "hemoglobin", "globulin", "fasting_glucose"
+  valueNumber     Float?        // 13.1, 3.90, 84
+  valueText       String?       // "Normocytic Normochromic", "Negative"
+  unit            String?       // "g/dL", "mg/dL", "U/L", "%", "/cmm"
+  refMin          Float?        // 12.0
+  refMax          Float?        // 15.0
+  refText         String?       // "<200 Desirable", "Normal: <=99.0"
+  status          String        // "NORMAL", "HIGH", "LOW", "BORDERLINE"
+  clinicalMethod  String?       // e.g. "SLS method", "Hexokinase"
+
+  createdAt       DateTime      @default(now())
+
+  report          MedicalReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+
+  @@index([reportId, category])
+  @@index([paramSlug])
+  @@index([customId])
+}
+
+model DailyVital {
+  id              Int          @id @default(autoincrement())
+  customId        String?      // Custom identifier e.g. "vital-1790776892228"
+  familyMemberId  Int
+  
+  recordDate      DateTime     // Day/Time of vital measurement
+  vitalType       String       // "BLOOD_PRESSURE" | "BLOOD_SUGAR"
+  
+  // Blood Pressure Details
+  systolic        Int?         // mmHg
+  diastolic       Int?         // mmHg
+  pulseRate       Int?         // bpm
+  
+  // Blood Sugar Details
+  sugarValue      Float?       // mg/dL
+  sugarContext    String?      // "FASTING" | "POST_PRANDIAL" | "RANDOM" | "BEDTIME"
+  
+  notes           String?
+  createdAt       DateTime     @default(now())
+
+  familyMember    FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+
+  @@index([familyMemberId, recordDate])
+  @@index([vitalType])
+  @@index([customId])
+}
+
+model TestPreset {
+  id             Int      @id @default(autoincrement())
+  customId       String?  // Custom identifier e.g. "preset-1790776892228"
+  labName        String?  // Lab/Provider name e.g. "Unipath Specialty Laboratory Ltd."
+  name           String   // Test parameter name e.g. "Hemoglobin", "Serum Creatinine"
+  category       String   // Category e.g. "Complete Blood Count", "Liver Function"
+  unit           String?  // e.g. "g/dL", "mg/dL"
+  refMin         Float?   // Minimum normal limit
+  refMax         Float?   // Maximum normal limit
+  refText        String?  // Textual reference range e.g. "< 200 Desirable"
+  clinicalMethod String?  // Clinical method e.g. "SLS method", "Hexokinase"
+  source         String?  @default("UPLOADED_REPORT") // "SYSTEM_DEFAULT" | "UPLOADED_REPORT" | "MANUAL"
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([labName, name])
+  @@index([category])
+  @@index([name])
+  @@index([customId])
+}

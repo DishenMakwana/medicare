@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { MedicalReport, ReportParameter, ReportImage } from "@/types";
@@ -31,6 +31,7 @@ import {
   Check,
   Database,
   Loader2,
+  CornerDownRight,
 } from "lucide-react";
 import { formatDate, formatDateTime, formatMemberAge } from "@/lib/utils";
 import { PageInspectModal } from "./PageInspectModal";
@@ -48,6 +49,15 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
   const categories = Array.from(
     new Set(parameters.map((p) => p.category || "General")),
   );
+
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const p of parameters) {
+      const cat = p.category || "General";
+      counts[cat] = (counts[cat] || 0) + 1;
+    }
+    return counts;
+  }, [parameters]);
 
   const [images, setImages] = useState<ReportImage[]>(report.images || []);
   const [activeCategory, setActiveCategory] = useState<string>("ALL");
@@ -77,6 +87,29 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
   const [saveSuccessId, setSaveSuccessId] = useState<number | string | null>(
     null,
   );
+  const [highlightedParamId, setHighlightedParamId] = useState<
+    number | string | null
+  >(null);
+
+  function scrollToParameter(param: ReportParameter) {
+    if (
+      activeCategory !== "ALL" &&
+      (param.category || "General") !== activeCategory
+    ) {
+      setActiveCategory("ALL");
+    }
+
+    setTimeout(() => {
+      const rowEl = document.getElementById(`param-row-${param.id}`);
+      if (rowEl) {
+        rowEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        setHighlightedParamId(param.id);
+        setTimeout(() => {
+          setHighlightedParamId(null);
+        }, 2500);
+      }
+    }, 60);
+  }
 
   function handleStartEdit(param: ReportParameter) {
     if (!param.testPresetId) return;
@@ -446,11 +479,16 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
       {/* Out of Range Attention Highlights */}
       {abnormalParams.length > 0 && (
         <div className="p-6 rounded-3xl bg-rose-50/70 border border-rose-200/90 shadow-sm space-y-4">
-          <div className="flex items-center gap-2 text-rose-800 font-extrabold text-sm">
-            <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
-            <span>
-              Parameters Flagged Outside Normal Biological Intervals (
-              {abnormalParams.length})
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-rose-800 font-extrabold text-sm">
+              <AlertTriangle className="w-5 h-5 text-rose-600 shrink-0" />
+              <span>
+                Parameters Flagged Outside Normal Biological Intervals (
+                {abnormalParams.length})
+              </span>
+            </div>
+            <span className="text-[11px] text-rose-600/80 font-medium">
+              Click any card to jump to its row in the table &darr;
             </span>
           </div>
 
@@ -458,13 +496,18 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
             {abnormalParams.map((param) => (
               <div
                 key={param.id}
-                className="p-4 bg-white rounded-2xl border border-rose-200 shadow-sm space-y-2"
+                onClick={() => scrollToParameter(param)}
+                className="p-4 bg-white rounded-2xl border border-rose-200/90 shadow-sm space-y-2 hover:border-rose-400 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.99] transition-all cursor-pointer group"
+                title={`Click to jump to ${param.paramName} in detailed table below`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-extrabold text-slate-900">
-                    {param.paramName}
-                  </span>
-                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-rose-700">
+                <div className="flex items-center justify-between gap-1">
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <span className="text-xs font-extrabold text-slate-900 truncate group-hover:text-rose-700 transition-colors">
+                      {param.paramName}
+                    </span>
+                    <CornerDownRight className="w-3 h-3 text-slate-300 group-hover:text-rose-500 transition-colors shrink-0" />
+                  </div>
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 shrink-0">
                     {param.status}
                   </span>
                 </div>
@@ -489,28 +532,45 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
             <button
               type="button"
               onClick={() => setActiveCategory("ALL")}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5 ${
                 activeCategory === "ALL"
                   ? "bg-white text-slate-900 shadow-sm font-black"
                   : "text-slate-600 hover:text-slate-900"
               }`}
             >
-              All Tests ({parameters.length})
-            </button>
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                type="button"
-                onClick={() => setActiveCategory(cat)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                  activeCategory === cat
-                    ? "bg-white text-teal-800 shadow-sm font-black"
-                    : "text-slate-600 hover:text-slate-900"
+              <span>All Tests</span>
+              <span
+                className={`text-[11px] font-semibold ${
+                  activeCategory === "ALL" ? "text-slate-700" : "text-slate-400"
                 }`}
               >
-                {cat}
-              </button>
-            ))}
+                ({parameters.length})
+              </span>
+            </button>
+            {categories.map((cat) => {
+              const count = categoryCounts[cat] || 0;
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold transition-all inline-flex items-center gap-1.5 ${
+                    activeCategory === cat
+                      ? "bg-white text-teal-800 shadow-sm font-black"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  <span>{cat}</span>
+                  <span
+                    className={`text-[11px] font-semibold ${
+                      activeCategory === cat ? "text-teal-700" : "text-slate-400"
+                    }`}
+                  >
+                    ({count})
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
 
@@ -538,7 +598,8 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
                     return (
                       <tr
                         key={param.id}
-                        className="bg-teal-50/40 border-y-2 border-teal-500/30"
+                        id={`param-row-${param.id}`}
+                        className="bg-teal-50/40 border-y-2 border-teal-500/30 scroll-mt-24"
                       >
                         <td colSpan={5} className="p-4 sm:p-5">
                           <div className="bg-white rounded-2xl border border-teal-200/90 shadow-sm p-4 sm:p-5 space-y-4">
@@ -874,7 +935,12 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
                   return (
                     <tr
                       key={param.id}
-                      className="hover:bg-slate-50/50 transition-colors"
+                      id={`param-row-${param.id}`}
+                      className={`transition-all duration-700 scroll-mt-24 ${
+                        highlightedParamId === param.id
+                          ? "bg-teal-100/70 ring-2 ring-teal-500 ring-inset shadow-md"
+                          : "hover:bg-slate-50/50"
+                      }`}
                     >
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2 flex-wrap">

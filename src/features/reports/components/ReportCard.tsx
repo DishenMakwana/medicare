@@ -12,7 +12,7 @@ import {
   Activity,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
-import type { MedicalReport, ReportParameter, ReportCardProps } from "@/types";
+import type { ReportParameter, ReportCardProps } from "@/types";
 
 export function ReportCard({ report }: ReportCardProps) {
   const memberName = report.familyMember?.name || "Family Member";

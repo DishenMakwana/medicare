@@ -4,22 +4,16 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
-  User,
   Heart,
   FileText,
-  Activity,
-  Plus,
   UploadCloud,
-  Calendar,
   AlertTriangle,
-  CheckCircle2,
-  Clock,
 } from "lucide-react";
 import { ReportCard } from "@/features/reports/components/ReportCard";
 import { VitalsTrendChart } from "@/features/analytics/components/VitalsTrendChart";
 import { VitalsModal } from "@/features/vitals/components/VitalsModal";
 import { formatDateTime, formatDate, formatMemberAge } from "@/lib/utils";
-import type { FamilyMember, MemberProfileClientProps } from "@/types";
+import type { MemberProfileClientProps } from "@/types";
 
 export function MemberProfileClient({
   member,

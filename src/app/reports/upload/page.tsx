@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { MultiPhotoDropzone } from "@/features/reports/components/MultiPhotoDropzone";
 import { ExtractionReviewTable } from "@/features/reports/components/ExtractionReviewTable";
 import { FamilyMember } from "@/types";
-import { FileUp, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 
 export default function ReportUploadPage() {
   const [extractedData, setExtractedData] = useState<any | null>(null);

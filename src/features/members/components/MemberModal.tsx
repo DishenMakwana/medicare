@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { UserPlus, X, ChevronDown, Calendar } from "lucide-react";
+import { UserPlus, X, ChevronDown } from "lucide-react";
 import { createFamilyMember } from "../actions";
 import { calculateAge } from "@/lib/utils";
 import type { FamilyMember, MemberModalProps } from "@/types";

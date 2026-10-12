@@ -12,7 +12,6 @@ import {
   Plus,
   CheckCircle2,
   AlertTriangle,
-  AlertCircle,
   FileText,
   Search,
   Move,
@@ -20,7 +19,6 @@ import {
   Building2,
   Check,
   ListFilter,
-  Sparkles,
   ChevronDown,
   Pencil,
 } from "lucide-react";
@@ -73,7 +71,6 @@ export function PageInspectModal({
 
   // Database Presets
   const [dbPresets, setDbPresets] = useState<TestPreset[]>([]);
-  const [isLoadingPresets, setIsLoadingPresets] = useState(false);
   const [presetSearch, setPresetSearch] = useState("");
 
   // Search filter for existing tests tab
@@ -83,17 +80,13 @@ export function PageInspectModal({
   useEffect(() => {
     if (!isOpen) return;
     let isMounted = true;
-    setIsLoadingPresets(true);
     getTestPresetsAction(labName)
       .then((data) => {
         if (isMounted && data) {
           setDbPresets(data);
         }
       })
-      .catch((err) => console.error("Error loading presets from db:", err))
-      .finally(() => {
-        if (isMounted) setIsLoadingPresets(false);
-      });
+      .catch((err) => console.error("Error loading presets from db:", err));
 
     return () => {
       isMounted = false;

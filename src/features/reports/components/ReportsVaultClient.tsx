@@ -9,17 +9,11 @@ import {
   Filter,
   AlertTriangle,
   CheckCircle2,
-  Building,
   User,
-  SlidersHorizontal,
   ChevronDown,
 } from "lucide-react";
 import { ReportCard } from "@/features/reports/components/ReportCard";
-import type {
-  MedicalReport,
-  FamilyMember,
-  ReportsVaultClientProps,
-} from "@/types";
+import type { ReportsVaultClientProps } from "@/types";
 
 export function ReportsVaultClient({
   reports,

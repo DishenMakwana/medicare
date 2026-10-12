@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Check,
   UserCheck,
   AlertTriangle,
   AlertCircle,
@@ -16,15 +15,10 @@ import {
   Trash2,
   ArrowLeft,
   Sparkles,
-  Layers,
-  ChevronRight,
-  Filter,
   Image as ImageIcon,
-  Eye,
   CheckCircle2,
   ChevronDown,
   UserPlus,
-  User,
   ZoomIn,
 } from "lucide-react";
 import { RangeBar } from "@/components/ui/RangeBar";
@@ -121,12 +115,8 @@ export function ExtractionReviewTable({
   const [collectionDate, setCollectionDate] = useState(
     extractedData.collection_date || "",
   );
-  const [rawPatientName, setRawPatientName] = useState(
-    extractedData.raw_patient_name || "",
-  );
-  const [cleanName, setCleanName] = useState(
-    extractedData.clean_patient_name || "",
-  );
+  const rawPatientName = extractedData.raw_patient_name || "";
+  const cleanName = extractedData.clean_patient_name || "";
 
   // Images & Parameters
   const [images, setImages] = useState<any[]>(extractedData.images || []);
@@ -218,11 +208,6 @@ export function ExtractionReviewTable({
     ) {
       setActiveCategory(updatedParam.category);
     }
-  }
-
-  function addParam() {
-    setInspectPageIndex(0);
-    setInspectModalTab("ADD_TEST");
   }
 
   async function handleSave() {

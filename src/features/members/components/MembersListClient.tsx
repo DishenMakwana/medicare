@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Users, ShieldAlert, FileText, Activity } from "lucide-react";
+import { Plus } from "lucide-react";
 import { MemberCard } from "./MemberCard";
 import { MemberModal } from "./MemberModal";
 import type { MembersListClientProps } from "@/types";

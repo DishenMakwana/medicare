@@ -14,8 +14,6 @@ import {
   CheckCircle2,
   FileText,
   Image as ImageIcon,
-  ExternalLink,
-  Layers,
   Sparkles,
   Trash2,
   ZoomIn,
@@ -35,7 +33,6 @@ import {
 import { formatDate, formatDateTime, formatMemberAge } from "@/lib/utils";
 import { PageInspectModal } from "./PageInspectModal";
 import type {
-  MedicalReport,
   ReportParameter,
   ReportImage,
   ReportDetailClientProps,

@@ -1,4 +1,3 @@
-import React from "react";
 import type { RangeBarProps } from "@/types";
 
 export function RangeBar({

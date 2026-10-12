@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Trash2, AlertTriangle, Loader2, X } from "lucide-react";
+import { Trash2, Loader2, X } from "lucide-react";
 import type { DeleteConfirmModalProps } from "@/types";
 
 export function DeleteConfirmModal({

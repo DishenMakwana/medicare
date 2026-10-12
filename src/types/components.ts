@@ -1,11 +1,5 @@
 import { LucideIcon } from "lucide-react";
-import {
-  FamilyMember,
-  MedicalReport,
-  DailyVital,
-  TestPreset,
-  ReportParameter,
-} from "./index";
+import { FamilyMember, MedicalReport, DailyVital, TestPreset } from "./index";
 
 // ----------------------------------------------------
 // UI Primitives & Layout

@@ -5,24 +5,14 @@ import {
   Heart,
   Activity,
   Plus,
-  Filter,
   Calendar,
-  Clock,
   User,
-  AlertCircle,
-  CheckCircle2,
-  TrendingDown,
-  TrendingUp,
   ChevronDown,
 } from "lucide-react";
 import { VitalsTrendChart } from "@/features/analytics/components/VitalsTrendChart";
 import { VitalsModal } from "@/features/vitals/components/VitalsModal";
 import { formatDateTime } from "@/lib/utils";
-import type {
-  DailyVital,
-  FamilyMember,
-  VitalsDashboardClientProps,
-} from "@/types";
+import type { VitalsDashboardClientProps } from "@/types";
 
 export function VitalsDashboardClient({
   vitals,

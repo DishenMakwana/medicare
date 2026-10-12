@@ -1,14 +1,7 @@
 import Link from "next/link";
-import {
-  User,
-  FileText,
-  Heart,
-  Activity,
-  ChevronRight,
-  Droplet,
-} from "lucide-react";
+import { FileText, Heart, Activity, ChevronRight, Droplet } from "lucide-react";
 import { formatDate, formatMemberAge } from "@/lib/utils";
-import type { FamilyMember, MemberCardProps } from "@/types";
+import type { MemberCardProps } from "@/types";
 
 export function MemberCard({ member }: MemberCardProps) {
   const reportsCount = member.reports?.length || 0;

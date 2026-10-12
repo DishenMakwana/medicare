@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Heart, Activity, Calendar, TrendingUp, Info } from "lucide-react";
+import { Heart, Activity } from "lucide-react";
 import {
   ResponsiveContainer,
   AreaChart,
@@ -13,7 +13,7 @@ import {
   ReferenceLine,
 } from "recharts";
 import { formatDate } from "@/lib/utils";
-import type { DailyVital, VitalsTrendChartProps } from "@/types";
+import type { VitalsTrendChartProps } from "@/types";
 
 export function VitalsTrendChart({ vitals }: VitalsTrendChartProps) {
   const [activeTab, setActiveTab] = useState<"BP" | "SUGAR">("BP");

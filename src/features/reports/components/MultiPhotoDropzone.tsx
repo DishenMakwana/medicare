@@ -3,8 +3,6 @@
 import { useState, useRef } from "react";
 import {
   UploadCloud,
-  Image as ImageIcon,
-  X,
   FileCheck,
   Sparkles,
   Loader2,

@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { FamilyMember } from "@/types";
-import { logDailyVital } from "../actions";
 import {
   Heart,
   Activity,
@@ -13,13 +11,8 @@ import {
   X,
   ChevronDown,
 } from "lucide-react";
-
-interface VitalsModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  members: FamilyMember[];
-  defaultMemberId?: string | number;
-}
+import { logDailyVital } from "../actions";
+import type { VitalsModalProps } from "@/types";
 
 export function VitalsModal({
   isOpen,

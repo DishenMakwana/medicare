@@ -1,9 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { DailyVital, FamilyMember } from "@/types";
-import { VitalsTrendChart } from "@/features/analytics/components/VitalsTrendChart";
-import { VitalsModal } from "@/features/vitals/components/VitalsModal";
 import {
   Heart,
   Activity,
@@ -18,12 +15,14 @@ import {
   TrendingUp,
   ChevronDown,
 } from "lucide-react";
+import { VitalsTrendChart } from "@/features/analytics/components/VitalsTrendChart";
+import { VitalsModal } from "@/features/vitals/components/VitalsModal";
 import { formatDateTime } from "@/lib/utils";
-
-interface VitalsDashboardClientProps {
-  vitals: DailyVital[];
-  members: FamilyMember[];
-}
+import type {
+  DailyVital,
+  FamilyMember,
+  VitalsDashboardClientProps,
+} from "@/types";
 
 export function VitalsDashboardClient({
   vitals,

@@ -2,19 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Trash2, AlertTriangle, Loader2, X } from "lucide-react";
-
-interface DeleteConfirmModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onConfirm: () => Promise<void> | void;
-  title?: string;
-  message?: string;
-  confirmLabel?: string;
-  cancelLabel?: string;
-  previewImageUrl?: string | null;
-  itemBadge?: string | null;
-  isDestructive?: boolean;
-}
+import type { DeleteConfirmModalProps } from "@/types";
 
 export function DeleteConfirmModal({
   isOpen,

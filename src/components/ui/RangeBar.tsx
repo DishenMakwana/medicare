@@ -1,13 +1,5 @@
 import React from "react";
-
-interface RangeBarProps {
-  value?: number | null;
-  min?: number | null;
-  max?: number | null;
-  unit?: string | null;
-  status?: string;
-  className?: string;
-}
+import type { RangeBarProps } from "@/types";
 
 export function RangeBar({
   value,

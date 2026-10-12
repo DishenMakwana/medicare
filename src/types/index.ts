@@ -141,3 +141,5 @@ export interface TestPreset {
   createdAt?: string | Date;
   updatedAt?: string | Date;
 }
+
+export * from "./components";

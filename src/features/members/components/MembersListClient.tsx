@@ -1,15 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { FamilyMember } from "@/types";
+import { useRouter } from "next/navigation";
+import { Plus, Users, ShieldAlert, FileText, Activity } from "lucide-react";
 import { MemberCard } from "./MemberCard";
 import { MemberModal } from "./MemberModal";
-import { Plus, Users, ShieldAlert, FileText, Activity } from "lucide-react";
-import { useRouter } from "next/navigation";
-
-interface MembersListClientProps {
-  initialMembers: FamilyMember[];
-}
+import type { MembersListClientProps } from "@/types";
 
 export function MembersListClient({ initialMembers }: MembersListClientProps) {
   const router = useRouter();

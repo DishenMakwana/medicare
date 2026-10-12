@@ -2,13 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { FamilyMember } from "@/types";
-import { matchFamilyMember } from "@/lib/name-normalizer";
-import { saveVerifiedReport } from "../actions";
-import { RangeBar } from "@/components/ui/RangeBar";
-import { DeleteConfirmModal } from "@/components/ui/DeleteConfirmModal";
-import { MemberModal } from "@/features/members/components/MemberModal";
-import { createFamilyMember } from "@/features/members/actions";
 import {
   Check,
   UserCheck,
@@ -34,13 +27,14 @@ import {
   User,
   ZoomIn,
 } from "lucide-react";
+import { RangeBar } from "@/components/ui/RangeBar";
+import { DeleteConfirmModal } from "@/components/ui/DeleteConfirmModal";
+import { MemberModal } from "@/features/members/components/MemberModal";
+import { createFamilyMember } from "@/features/members/actions";
+import { saveVerifiedReport } from "../actions";
+import { matchFamilyMember } from "@/lib/name-normalizer";
 import { PageInspectModal } from "./PageInspectModal";
-
-interface ExtractionReviewTableProps {
-  extractedData: any;
-  members: FamilyMember[];
-  onReset: () => void;
-}
+import type { FamilyMember, ExtractionReviewTableProps } from "@/types";
 
 export function ExtractionReviewTable({
   extractedData,

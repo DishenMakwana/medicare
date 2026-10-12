@@ -1,10 +1,7 @@
-import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
+import { db } from "@/lib/db";
 import { MemberProfileClient } from "@/features/members/components/MemberProfileClient";
-
-interface MemberDetailPageProps {
-  params: Promise<{ id: string }>;
-}
+import type { MemberDetailPageProps } from "@/types";
 
 export default async function MemberDetailPage({
   params,

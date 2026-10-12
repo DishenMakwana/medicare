@@ -1,10 +1,10 @@
+import fs from "fs";
+import path from "path";
 import { PrismaClient } from "@prisma/client";
 import { FamilyMember, MedicalReport, DailyVital, TestPreset } from "@/types";
 import { initialTestPresets } from "./seed-data";
 import { cleanPersonName } from "./name-normalizer";
 import { calculateAge } from "./utils";
-import fs from "fs";
-import path from "path";
 
 // Prisma Singleton for Next.js to prevent connection pool exhaustion during hot reload
 const globalForPrisma = globalThis as unknown as {
@@ -18,6 +18,44 @@ export const prisma =
   });
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+
+// ----------------------------------------------------
+// In-Memory Fast Cache with TTL & Dynamic Invalidation
+// ----------------------------------------------------
+interface CacheEntry<T> {
+  data: T;
+  expiry: number;
+}
+
+const localCache = new Map<string, CacheEntry<unknown>>();
+
+const memoryCache = {
+  get<T>(key: string): T | null {
+    const entry = localCache.get(key);
+    if (!entry) return null;
+    if (Date.now() > entry.expiry) {
+      localCache.delete(key);
+      return null;
+    }
+    return entry.data as T;
+  },
+  set<T>(key: string, data: T, ttlMs: number = 60000): void {
+    localCache.set(key, {
+      data,
+      expiry: Date.now() + ttlMs,
+    });
+  },
+  invalidatePrefix(prefix: string): void {
+    for (const key of localCache.keys()) {
+      if (key.startsWith(prefix)) {
+        localCache.delete(key);
+      }
+    }
+  },
+  invalidateAll(): void {
+    localCache.clear();
+  },
+};
 
 // Helper to delete physical image files from public/ folder when deleted from database
 function deleteImageFileFromDisk(imageUrl: string | null | undefined) {
@@ -57,6 +95,10 @@ function deleteImageFileFromDisk(imageUrl: string | null | undefined) {
 export const db = {
   // Members
   async getMembers(): Promise<FamilyMember[]> {
+    const cacheKey = "members:all";
+    const cached = memoryCache.get<FamilyMember[]>(cacheKey);
+    if (cached) return cached;
+
     try {
       const dbMembers = await prisma.familyMember.findMany({
         include: {
@@ -72,7 +114,9 @@ export const db = {
         },
         orderBy: { name: "asc" },
       });
-      return dbMembers as unknown as FamilyMember[];
+      const result = dbMembers as unknown as FamilyMember[];
+      memoryCache.set(cacheKey, result, 60000);
+      return result;
     } catch (err) {
       console.warn("[Database] Failed to fetch members:", err);
       return [];
@@ -84,6 +128,10 @@ export const db = {
   },
 
   async getMemberById(id: string | number): Promise<FamilyMember | null> {
+    const cacheKey = `member:${id}`;
+    const cached = memoryCache.get<FamilyMember>(cacheKey);
+    if (cached) return cached;
+
     try {
       const numId =
         typeof id === "number"
@@ -110,7 +158,11 @@ export const db = {
           },
         },
       });
-      return (member as unknown as FamilyMember) || null;
+      const result = (member as unknown as FamilyMember) || null;
+      if (result) {
+        memoryCache.set(cacheKey, result, 60000);
+      }
+      return result;
     } catch (err) {
       console.warn(`[Database] Failed to fetch member ${id}:`, err);
       return null;
@@ -137,6 +189,10 @@ export const db = {
         avatarUrl: data.avatarUrl || null,
       },
     });
+
+    memoryCache.invalidatePrefix("member");
+    memoryCache.invalidatePrefix("reports");
+
     return created as unknown as FamilyMember;
   },
 
@@ -183,6 +239,10 @@ export const db = {
         ...(data.avatarUrl !== undefined ? { avatarUrl: data.avatarUrl } : {}),
       },
     });
+
+    memoryCache.invalidatePrefix("member");
+    memoryCache.invalidatePrefix("reports");
+
     return updated as unknown as FamilyMember;
   },
 
@@ -214,6 +274,10 @@ export const db = {
       await prisma.familyMember.delete({
         where: { id: targetId },
       });
+
+      memoryCache.invalidatePrefix("member");
+      memoryCache.invalidatePrefix("reports");
+
       return true;
     }
 
@@ -222,6 +286,10 @@ export const db = {
 
   // Reports
   async getReports(): Promise<MedicalReport[]> {
+    const cacheKey = "reports:all";
+    const cached = memoryCache.get<MedicalReport[]>(cacheKey);
+    if (cached) return cached;
+
     try {
       const reports = await prisma.medicalReport.findMany({
         include: {
@@ -231,7 +299,9 @@ export const db = {
         },
         orderBy: { reportDate: "desc" },
       });
-      return reports as unknown as MedicalReport[];
+      const result = reports as unknown as MedicalReport[];
+      memoryCache.set(cacheKey, result, 60000);
+      return result;
     } catch (err) {
       console.warn("[Database] Failed to fetch reports:", err);
       return [];
@@ -239,6 +309,10 @@ export const db = {
   },
 
   async getReportById(id: string | number): Promise<MedicalReport | null> {
+    const cacheKey = `report:${id}`;
+    const cached = memoryCache.get<MedicalReport>(cacheKey);
+    if (cached) return cached;
+
     try {
       const numId =
         typeof id === "number"
@@ -327,13 +401,19 @@ export const db = {
           }),
         );
 
-        return {
+        const result = {
           ...report,
           parameters: enhancedParameters,
         } as unknown as MedicalReport;
+        memoryCache.set(cacheKey, result, 60000);
+        return result;
       }
 
-      return (report as unknown as MedicalReport) || null;
+      const result = (report as unknown as MedicalReport) || null;
+      if (result) {
+        memoryCache.set(cacheKey, result, 60000);
+      }
+      return result;
     } catch (err) {
       console.warn(`[Database] Failed to fetch report ${id}:`, err);
       return null;
@@ -435,6 +515,11 @@ export const db = {
     // Automatically save/update test presets for this report provider in database
     await this.savePresetsFromReport(reportData.labName, reportData.parameters);
 
+    memoryCache.invalidatePrefix("reports");
+    memoryCache.invalidatePrefix("report");
+    memoryCache.invalidatePrefix("member");
+    memoryCache.invalidatePrefix("presets");
+
     return dbReport as unknown as MedicalReport;
   },
 
@@ -469,6 +554,9 @@ export const db = {
     if (imageUrlToDelete) {
       deleteImageFileFromDisk(imageUrlToDelete);
     }
+
+    memoryCache.invalidatePrefix("reports");
+    memoryCache.invalidatePrefix("report");
 
     return true;
   },
@@ -525,11 +613,19 @@ export const db = {
       deleteImageFileFromDisk(url);
     }
 
+    memoryCache.invalidatePrefix("reports");
+    memoryCache.invalidatePrefix("report");
+    memoryCache.invalidatePrefix("member");
+
     return true;
   },
 
   // Daily Vitals (BP & Sugar)
   async getVitals(familyMemberId?: string | number): Promise<DailyVital[]> {
+    const cacheKey = `vitals:${familyMemberId || "all"}`;
+    const cached = memoryCache.get<DailyVital[]>(cacheKey);
+    if (cached) return cached;
+
     try {
       const numId =
         familyMemberId !== undefined
@@ -545,7 +641,9 @@ export const db = {
         include: { familyMember: true },
         orderBy: { recordDate: "desc" },
       });
-      return vitals as unknown as DailyVital[];
+      const result = vitals as unknown as DailyVital[];
+      memoryCache.set(cacheKey, result, 60000);
+      return result;
     } catch (err) {
       console.warn("[Database] Failed to fetch vitals:", err);
       return [];
@@ -594,6 +692,10 @@ export const db = {
         familyMember: true,
       },
     });
+
+    memoryCache.invalidatePrefix("vitals");
+    memoryCache.invalidatePrefix("member");
+
     return created as unknown as DailyVital;
   },
 
@@ -607,20 +709,26 @@ export const db = {
 
     if (numId !== null) {
       await prisma.dailyVital.delete({ where: { id: numId } });
-      return true;
     } else {
       await prisma.dailyVital.deleteMany({
         where: { customId: String(vitalId) },
       });
-      return true;
     }
+
+    memoryCache.invalidatePrefix("vitals");
+    memoryCache.invalidatePrefix("member");
+
+    return true;
   },
 
   // Test Presets (Lab-specific & General Clinical Biomarkers)
   async getTestPresets(labName?: string | null): Promise<TestPreset[]> {
-    try {
-      const cleanTargetLab = labName ? labName.trim().toLowerCase() : null;
+    const cleanTargetLab = labName ? labName.trim().toLowerCase() : null;
+    const cacheKey = `presets:${cleanTargetLab || "all"}`;
+    const cached = memoryCache.get<TestPreset[]>(cacheKey);
+    if (cached) return cached;
 
+    try {
       let dbPresets = await prisma.testPreset.findMany({
         orderBy: [{ name: "asc" }],
       });
@@ -650,7 +758,7 @@ export const db = {
       const presets = dbPresets as unknown as TestPreset[];
 
       if (cleanTargetLab) {
-        return [...presets].sort((a, b) => {
+        const sorted = [...presets].sort((a, b) => {
           const aMatch = a.labName?.toLowerCase().includes(cleanTargetLab)
             ? 1
             : 0;
@@ -660,8 +768,11 @@ export const db = {
           if (aMatch !== bMatch) return bMatch - aMatch;
           return a.name.localeCompare(b.name);
         });
+        memoryCache.set(cacheKey, sorted, 300000);
+        return sorted;
       }
 
+      memoryCache.set(cacheKey, presets, 300000);
       return presets;
     } catch (err) {
       console.warn("[Database] Failed to fetch test presets:", err);
@@ -744,6 +855,8 @@ export const db = {
         console.error("Failed to save preset for:", paramName, err);
       }
     }
+
+    memoryCache.invalidatePrefix("presets");
   },
 
   async upsertTestPreset(presetData: {
@@ -781,6 +894,11 @@ export const db = {
           updatedAt: new Date(),
         },
       });
+
+      memoryCache.invalidatePrefix("presets");
+      memoryCache.invalidatePrefix("reports");
+      memoryCache.invalidatePrefix("report");
+
       return updated as unknown as TestPreset;
     }
 
@@ -802,6 +920,11 @@ export const db = {
         source: "MANUAL",
       },
     });
+
+    memoryCache.invalidatePrefix("presets");
+    memoryCache.invalidatePrefix("reports");
+    memoryCache.invalidatePrefix("report");
+
     return created as unknown as TestPreset;
   },
 
@@ -820,7 +943,9 @@ export const db = {
     const updated = await prisma.testPreset.update({
       where: { id: Number(id) },
       data: {
-        ...(presetData.name !== undefined ? { name: presetData.name.trim() } : {}),
+        ...(presetData.name !== undefined
+          ? { name: presetData.name.trim() }
+          : {}),
         ...(presetData.category !== undefined
           ? { category: presetData.category.trim() }
           : {}),
@@ -852,6 +977,11 @@ export const db = {
         updatedAt: new Date(),
       },
     });
+
+    memoryCache.invalidatePrefix("presets");
+    memoryCache.invalidatePrefix("reports");
+    memoryCache.invalidatePrefix("report");
+
     return updated as unknown as TestPreset;
   },
 
@@ -915,19 +1045,27 @@ export const db = {
       where: { id: Number(paramId) },
       data: {
         ...(data.name !== undefined ? { paramName: data.name.trim() } : {}),
-        ...(data.category !== undefined ? { category: data.category.trim() } : {}),
+        ...(data.category !== undefined
+          ? { category: data.category.trim() }
+          : {}),
         ...(data.unit !== undefined ? { unit: data.unit?.trim() || null } : {}),
         valueNumber,
         valueText,
         refMin,
         refMax,
-        ...(data.refText !== undefined ? { refText: data.refText?.trim() || null } : {}),
+        ...(data.refText !== undefined
+          ? { refText: data.refText?.trim() || null }
+          : {}),
         ...(data.clinicalMethod !== undefined
           ? { clinicalMethod: data.clinicalMethod?.trim() || null }
           : {}),
         status,
       },
     });
+
+    memoryCache.invalidatePrefix("presets");
+    memoryCache.invalidatePrefix("reports");
+    memoryCache.invalidatePrefix("report");
   },
 
   async clearAllData(): Promise<void> {
@@ -937,5 +1075,6 @@ export const db = {
     await prisma.dailyVital.deleteMany({});
     await prisma.familyMember.deleteMany({});
     await prisma.testPreset.deleteMany({});
+    memoryCache.invalidateAll();
   },
 };

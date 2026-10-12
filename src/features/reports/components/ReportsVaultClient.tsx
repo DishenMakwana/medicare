@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { MedicalReport, FamilyMember } from "@/types";
-import { ReportCard } from "@/features/reports/components/ReportCard";
 import {
   FileText,
   Search,
@@ -16,11 +14,12 @@ import {
   SlidersHorizontal,
   ChevronDown,
 } from "lucide-react";
-
-interface ReportsVaultClientProps {
-  reports: MedicalReport[];
-  members: FamilyMember[];
-}
+import { ReportCard } from "@/features/reports/components/ReportCard";
+import type {
+  MedicalReport,
+  FamilyMember,
+  ReportsVaultClientProps,
+} from "@/types";
 
 export function ReportsVaultClient({
   reports,

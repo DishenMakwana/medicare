@@ -1,10 +1,7 @@
-import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
+import { db } from "@/lib/db";
 import { ReportDetailClient } from "@/features/reports/components/ReportDetailClient";
-
-interface ReportPageProps {
-  params: Promise<{ id: string }>;
-}
+import type { ReportPageProps } from "@/types";
 
 export default async function ReportDetailPage({ params }: ReportPageProps) {
   const { id } = await params;

@@ -43,14 +43,6 @@ export async function saveVerifiedReport(reportData: {
   return saved;
 }
 
-export async function getMedicalReports() {
-  return await db.getReports();
-}
-
-export async function getMedicalReport(id: string | number) {
-  return await db.getReportById(id);
-}
-
 export async function deleteReportImageAction(
   imageId: string | number,
   reportId: string | number,
@@ -125,4 +117,3 @@ export async function updateTestPresetByIdAction(payload: {
   revalidatePath("/");
   return { success: true, preset: updatedPreset };
 }
-

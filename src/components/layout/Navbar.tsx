@@ -1,15 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Activity, FileText, Heart, Plus, Users } from "lucide-react";
-import { useState } from "react";
 import { VitalsModal } from "@/features/vitals/components/VitalsModal";
-import { FamilyMember } from "@/types";
-
-interface NavbarProps {
-  members?: FamilyMember[];
-}
+import type { NavbarProps } from "@/types";
 
 export function Navbar({ members = [] }: NavbarProps) {
   const pathname = usePathname();

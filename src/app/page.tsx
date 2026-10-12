@@ -1,9 +1,4 @@
 import Link from "next/link";
-import { db } from "@/lib/db";
-import { MemberCard } from "@/features/members/components/MemberCard";
-import { ReportCard } from "@/features/reports/components/ReportCard";
-import { VitalsTrendChart } from "@/features/analytics/components/VitalsTrendChart";
-import { StatCard } from "@/components/ui/StatCard";
 import {
   Users,
   FileText,
@@ -16,14 +11,21 @@ import {
   ShieldCheck,
   CheckCircle2,
 } from "lucide-react";
+import { MemberCard } from "@/features/members/components/MemberCard";
+import { ReportCard } from "@/features/reports/components/ReportCard";
+import { VitalsTrendChart } from "@/features/analytics/components/VitalsTrendChart";
+import { StatCard } from "@/components/ui/StatCard";
+import { db } from "@/lib/db";
 import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
-  const members = await db.getMembers();
-  const reports = await db.getReports();
-  const vitals = await db.getVitals();
+  const [members, reports, vitals] = await Promise.all([
+    db.getMembers(),
+    db.getReports(),
+    db.getVitals(),
+  ]);
 
   const totalReports = reports.length;
   const totalParameters = reports.reduce(

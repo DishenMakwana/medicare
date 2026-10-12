@@ -1,19 +1,5 @@
 import React from "react";
-import { LucideIcon } from "lucide-react";
-
-interface StatCardProps {
-  title: string;
-  value: string | number;
-  subtext?: string;
-  icon: LucideIcon;
-  iconColor?: string;
-  iconBg?: string;
-  badge?: {
-    text: string;
-    color: string;
-  };
-  className?: string;
-}
+import type { StatCardProps } from "@/types";
 
 export function StatCard({
   title,

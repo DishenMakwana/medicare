@@ -2,10 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { FamilyMember, MedicalReport, DailyVital } from "@/types";
-import { ReportCard } from "@/features/reports/components/ReportCard";
-import { VitalsTrendChart } from "@/features/analytics/components/VitalsTrendChart";
-import { VitalsModal } from "@/features/vitals/components/VitalsModal";
 import {
   ArrowLeft,
   User,
@@ -19,12 +15,11 @@ import {
   CheckCircle2,
   Clock,
 } from "lucide-react";
+import { ReportCard } from "@/features/reports/components/ReportCard";
+import { VitalsTrendChart } from "@/features/analytics/components/VitalsTrendChart";
+import { VitalsModal } from "@/features/vitals/components/VitalsModal";
 import { formatDateTime, formatDate, formatMemberAge } from "@/lib/utils";
-
-interface MemberProfileClientProps {
-  member: FamilyMember;
-  allMembers: FamilyMember[];
-}
+import type { FamilyMember, MemberProfileClientProps } from "@/types";
 
 export function MemberProfileClient({
   member,

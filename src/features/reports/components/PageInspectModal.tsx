@@ -25,48 +25,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { getTestPresetsAction, saveTestPresetAction } from "../actions";
-import { TestPreset } from "@/types";
-
-export interface PageInspectModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  images: Array<{
-    id?: string | number;
-    imageUrl: string;
-    pageNumber?: number;
-    unparsedLines?: string[];
-  }>;
-  initialPageIndex?: number;
-  initialTab?: "ADD_TEST" | "VIEW_TESTS";
-  parameters: Array<{
-    category?: string;
-    paramName?: string;
-    param_name?: string;
-    paramSlug?: string;
-    param_slug?: string;
-    valueNumber?: number | null;
-    value_number?: number | null;
-    valueText?: string | null;
-    value_text?: string | null;
-    unit?: string | null;
-    refMin?: number | null;
-    ref_min?: number | null;
-    refMax?: number | null;
-    ref_max?: number | null;
-    refText?: string | null;
-    ref_text?: string | null;
-    status?: string;
-    clinicalMethod?: string | null;
-    clinical_method?: string | null;
-    sourcePage?: number | null;
-    source_page?: number | null;
-    is_incomplete?: boolean;
-  }>;
-  existingCategories?: string[];
-  labName?: string | null;
-  onAddParameter?: (newParam: any) => void;
-  onUpdateParameter?: (index: number, updatedParam: any) => void;
-}
+import type { TestPreset, PageInspectModalProps } from "@/types";
 
 export function PageInspectModal({
   isOpen,

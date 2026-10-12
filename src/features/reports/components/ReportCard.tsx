@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { MedicalReport, ReportParameter } from "@/types";
 import {
   FileText,
   Calendar,
@@ -13,10 +12,7 @@ import {
   Activity,
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
-
-interface ReportCardProps {
-  report: MedicalReport;
-}
+import type { MedicalReport, ReportParameter, ReportCardProps } from "@/types";
 
 export function ReportCard({ report }: ReportCardProps) {
   const memberName = report.familyMember?.name || "Family Member";

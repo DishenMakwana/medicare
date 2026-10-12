@@ -31,7 +31,3 @@ export async function logDailyVital(data: {
   revalidatePath(`/members/${data.familyMemberId}`);
   return vital;
 }
-
-export async function getVitals(familyMemberId?: string | number) {
-  return await db.getVitals(familyMemberId);
-}

@@ -11,10 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { DeleteConfirmModal } from "@/components/ui/DeleteConfirmModal";
-
-interface MultiPhotoDropzoneProps {
-  onExtractionComplete: (data: any) => void;
-}
+import type { MultiPhotoDropzoneProps } from "@/types";
 
 export function MultiPhotoDropzone({
   onExtractionComplete,

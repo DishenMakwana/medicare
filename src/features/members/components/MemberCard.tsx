@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { FamilyMember } from "@/types";
 import {
   User,
   FileText,
@@ -9,10 +8,7 @@ import {
   Droplet,
 } from "lucide-react";
 import { formatDate, formatMemberAge } from "@/lib/utils";
-
-interface MemberCardProps {
-  member: FamilyMember;
-}
+import type { FamilyMember, MemberCardProps } from "@/types";
 
 export function MemberCard({ member }: MemberCardProps) {
   const reportsCount = member.reports?.length || 0;

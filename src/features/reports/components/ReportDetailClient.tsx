@@ -3,14 +3,6 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { MedicalReport, ReportParameter, ReportImage } from "@/types";
-import { RangeBar } from "@/components/ui/RangeBar";
-import { DeleteConfirmModal } from "@/components/ui/DeleteConfirmModal";
-import {
-  deleteReportImageAction,
-  deleteReportAction,
-  updateTestPresetByIdAction,
-} from "@/features/reports/actions";
 import {
   ArrowLeft,
   Calendar,
@@ -33,12 +25,21 @@ import {
   Loader2,
   CornerDownRight,
 } from "lucide-react";
+import { RangeBar } from "@/components/ui/RangeBar";
+import { DeleteConfirmModal } from "@/components/ui/DeleteConfirmModal";
+import {
+  deleteReportImageAction,
+  deleteReportAction,
+  updateTestPresetByIdAction,
+} from "@/features/reports/actions";
 import { formatDate, formatDateTime, formatMemberAge } from "@/lib/utils";
 import { PageInspectModal } from "./PageInspectModal";
-
-interface ReportDetailClientProps {
-  report: MedicalReport;
-}
+import type {
+  MedicalReport,
+  ReportParameter,
+  ReportImage,
+  ReportDetailClientProps,
+} from "@/types";
 
 export function ReportDetailClient({ report }: ReportDetailClientProps) {
   const router = useRouter();
@@ -120,13 +121,15 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
       category: param.testPreset?.category || param.category || "General",
       unit: param.testPreset?.unit ?? param.unit ?? "",
       refMin:
-        param.testPreset?.refMin !== undefined && param.testPreset?.refMin !== null
+        param.testPreset?.refMin !== undefined &&
+        param.testPreset?.refMin !== null
           ? String(param.testPreset.refMin)
           : param.refMin !== undefined && param.refMin !== null
             ? String(param.refMin)
             : "",
       refMax:
-        param.testPreset?.refMax !== undefined && param.testPreset?.refMax !== null
+        param.testPreset?.refMax !== undefined &&
+        param.testPreset?.refMax !== null
           ? String(param.testPreset.refMax)
           : param.refMax !== undefined && param.refMax !== null
             ? String(param.refMax)
@@ -152,9 +155,13 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
     setIsSavingPreset(true);
     try {
       const minVal =
-        editFormData.refMin.trim() !== "" ? parseFloat(editFormData.refMin) : null;
+        editFormData.refMin.trim() !== ""
+          ? parseFloat(editFormData.refMin)
+          : null;
       const maxVal =
-        editFormData.refMax.trim() !== "" ? parseFloat(editFormData.refMax) : null;
+        editFormData.refMax.trim() !== ""
+          ? parseFloat(editFormData.refMax)
+          : null;
       const numVal =
         editFormData.valueNumber.trim() !== ""
           ? parseFloat(editFormData.valueNumber)
@@ -184,11 +191,20 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
       if (res.success && res.preset) {
         let updatedStatus = param.status;
         if (parsedNumVal !== null) {
-          if (payloadData.refMax !== null && parsedNumVal > payloadData.refMax) {
+          if (
+            payloadData.refMax !== null &&
+            parsedNumVal > payloadData.refMax
+          ) {
             updatedStatus = "HIGH";
-          } else if (payloadData.refMin !== null && parsedNumVal < payloadData.refMin) {
+          } else if (
+            payloadData.refMin !== null &&
+            parsedNumVal < payloadData.refMin
+          ) {
             updatedStatus = "LOW";
-          } else if (payloadData.refMin !== null || payloadData.refMax !== null) {
+          } else if (
+            payloadData.refMin !== null ||
+            payloadData.refMax !== null
+          ) {
             updatedStatus = "NORMAL";
           }
         }
@@ -224,7 +240,9 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
       }
     } catch (err) {
       console.error("Failed to update test preset:", err);
-      alert("Failed to update test preset. Please check the inputs and try again.");
+      alert(
+        "Failed to update test preset. Please check the inputs and try again.",
+      );
     } finally {
       setIsSavingPreset(false);
     }
@@ -563,7 +581,9 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
                   <span>{cat}</span>
                   <span
                     className={`text-[11px] font-semibold ${
-                      activeCategory === cat ? "text-teal-700" : "text-slate-400"
+                      activeCategory === cat
+                        ? "text-teal-700"
+                        : "text-slate-400"
                     }`}
                   >
                     ({count})
@@ -619,7 +639,10 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
                                     </span>
                                   </div>
                                   <span className="text-[11px] text-slate-500">
-                                    Updating will directly persist to TestPreset (ID: {editFormData.presetId}) in the database and recalculate this report parameter.
+                                    Updating will directly persist to TestPreset
+                                    (ID: {editFormData.presetId}) in the
+                                    database and recalculate this report
+                                    parameter.
                                   </span>
                                 </div>
                               </div>
@@ -647,7 +670,10 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
                                   ) : (
                                     <>
                                       <Check className="w-3.5 h-3.5" />
-                                      <span>Save Preset (ID: #{editFormData.presetId})</span>
+                                      <span>
+                                        Save Preset (ID: #
+                                        {editFormData.presetId})
+                                      </span>
                                     </>
                                   )}
                                 </button>
@@ -659,10 +685,14 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
                               <div className="flex items-center justify-between">
                                 <span className="text-[11px] font-black uppercase tracking-wider text-teal-900 flex items-center gap-1.5">
                                   <FileText className="w-3.5 h-3.5 text-teal-700" />
-                                  <span>Actual Patient Test Result (Report Parameter)</span>
+                                  <span>
+                                    Actual Patient Test Result (Report
+                                    Parameter)
+                                  </span>
                                 </span>
                                 <span className="text-[10px] text-teal-700 font-medium">
-                                  Editing this will directly update the reported value for this patient
+                                  Editing this will directly update the reported
+                                  value for this patient
                                 </span>
                               </div>
 
@@ -693,7 +723,8 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
                                 {/* Text/Qualitative Value */}
                                 <div className="space-y-1 sm:col-span-2">
                                   <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
-                                    Qualitative / Text Result (Optional if numeric)
+                                    Qualitative / Text Result (Optional if
+                                    numeric)
                                   </label>
                                   <input
                                     type="text"
@@ -714,7 +745,8 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
                             {/* Section 2: Preset Standards & Methodology Grid */}
                             <div className="space-y-2">
                               <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                                Preset Standards & Biological Reference Range (Database TestPreset)
+                                Preset Standards & Biological Reference Range
+                                (Database TestPreset)
                               </span>
 
                               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 text-xs">
@@ -837,7 +869,8 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
                                 {/* Ref Text */}
                                 <div className="space-y-1 sm:col-span-full">
                                   <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                                    Qualitative Reference Text (Optional for non-numeric/qualitative tests)
+                                    Qualitative Reference Text (Optional for
+                                    non-numeric/qualitative tests)
                                   </label>
                                   <input
                                     type="text"
@@ -872,11 +905,20 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
 
                               let previewStatus = "NORMAL";
                               if (previewNum !== null && !isNaN(previewNum)) {
-                                if (previewMax !== null && previewNum > previewMax) {
+                                if (
+                                  previewMax !== null &&
+                                  previewNum > previewMax
+                                ) {
                                   previewStatus = "HIGH";
-                                } else if (previewMin !== null && previewNum < previewMin) {
+                                } else if (
+                                  previewMin !== null &&
+                                  previewNum < previewMin
+                                ) {
                                   previewStatus = "LOW";
-                                } else if (previewMin !== null || previewMax !== null) {
+                                } else if (
+                                  previewMin !== null ||
+                                  previewMax !== null
+                                ) {
                                   previewStatus = "NORMAL";
                                 }
                               }
@@ -889,9 +931,11 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
                                       <div className="flex items-center gap-2 text-xs font-bold text-slate-800 flex-wrap">
                                         <span>Live Result Gauge Preview:</span>
                                         <span className="font-mono font-black text-slate-900">
-                                          {previewNum !== null && !isNaN(previewNum)
+                                          {previewNum !== null &&
+                                          !isNaN(previewNum)
                                             ? previewNum
-                                            : editFormData.valueText || "—"}{" "}
+                                            : editFormData.valueText ||
+                                              "—"}{" "}
                                           {editFormData.unit}
                                         </span>
                                         <span
@@ -907,22 +951,27 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
                                         </span>
                                       </div>
                                       <span className="text-[11px] text-slate-400">
-                                        Biological Reference Interval: {previewMin !== null ? previewMin : "—"} to {previewMax !== null ? previewMax : "—"} {editFormData.unit}
+                                        Biological Reference Interval:{" "}
+                                        {previewMin !== null ? previewMin : "—"}{" "}
+                                        to{" "}
+                                        {previewMax !== null ? previewMax : "—"}{" "}
+                                        {editFormData.unit}
                                       </span>
                                     </div>
                                   </div>
 
-                                  {previewNum !== null && !isNaN(previewNum) && (
-                                    <div className="w-full md:w-80">
-                                      <RangeBar
-                                        value={previewNum}
-                                        min={previewMin}
-                                        max={previewMax}
-                                        unit={editFormData.unit}
-                                        status={previewStatus}
-                                      />
-                                    </div>
-                                  )}
+                                  {previewNum !== null &&
+                                    !isNaN(previewNum) && (
+                                      <div className="w-full md:w-80">
+                                        <RangeBar
+                                          value={previewNum}
+                                          min={previewMin}
+                                          max={previewMax}
+                                          unit={editFormData.unit}
+                                          status={previewStatus}
+                                        />
+                                      </div>
+                                    )}
                                 </div>
                               );
                             })()}

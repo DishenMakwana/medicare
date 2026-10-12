@@ -1,22 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { createFamilyMember } from "../actions";
 import { UserPlus, X, ChevronDown, Calendar } from "lucide-react";
-import { FamilyMember } from "@/types";
+import { createFamilyMember } from "../actions";
 import { calculateAge } from "@/lib/utils";
-
-interface MemberModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSuccess?: (createdMember?: FamilyMember) => void;
-  initialName?: string;
-  initialGender?: string;
-  initialDateOfBirth?: string;
-  initialAgeYears?: number | string;
-  initialAliases?: string;
-  initialRelation?: string;
-}
+import type { FamilyMember, MemberModalProps } from "@/types";
 
 export function MemberModal({
   isOpen,

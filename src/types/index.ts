@@ -50,6 +50,8 @@ export interface ReportParameter {
   id: number | string;
   customId?: string | null;
   reportId?: number | string;
+  testPresetId?: number | null;
+  testPreset?: TestPreset | null;
   category: string;
   paramName: string;
   paramSlug: string;

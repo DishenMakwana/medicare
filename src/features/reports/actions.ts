@@ -91,3 +91,38 @@ export async function saveTestPresetAction(presetData: {
 }) {
   return await db.upsertTestPreset(presetData);
 }
+
+export async function updateTestPresetByIdAction(payload: {
+  presetId: number;
+  reportId: number | string;
+  reportParameterId?: number | string;
+  data: {
+    name: string;
+    category: string;
+    unit?: string | null;
+    refMin?: number | null;
+    refMax?: number | null;
+    refText?: string | null;
+    clinicalMethod?: string | null;
+    valueNumber?: number | null;
+    valueText?: string | null;
+  };
+}) {
+  const updatedPreset = await db.updateTestPresetById(
+    Number(payload.presetId),
+    payload.data,
+  );
+
+  if (payload.reportParameterId) {
+    await db.syncReportParameterWithPreset(
+      Number(payload.reportParameterId),
+      payload.data,
+    );
+  }
+
+  revalidatePath(`/reports/${payload.reportId}`);
+  revalidatePath("/reports");
+  revalidatePath("/");
+  return { success: true, preset: updatedPreset };
+}
+

@@ -9,6 +9,7 @@ import { DeleteConfirmModal } from "@/components/ui/DeleteConfirmModal";
 import {
   deleteReportImageAction,
   deleteReportAction,
+  updateTestPresetByIdAction,
 } from "@/features/reports/actions";
 import {
   ArrowLeft,
@@ -26,6 +27,10 @@ import {
   Sparkles,
   Trash2,
   ZoomIn,
+  Pencil,
+  Check,
+  Database,
+  Loader2,
 } from "lucide-react";
 import { formatDate, formatDateTime, formatMemberAge } from "@/lib/utils";
 import { PageInspectModal } from "./PageInspectModal";
@@ -37,7 +42,9 @@ interface ReportDetailClientProps {
 export function ReportDetailClient({ report }: ReportDetailClientProps) {
   const router = useRouter();
   const member = report.familyMember;
-  const parameters = report.parameters || [];
+  const [parameters, setParameters] = useState<ReportParameter[]>(
+    report.parameters || [],
+  );
   const categories = Array.from(
     new Set(parameters.map((p) => p.category || "General")),
   );
@@ -49,6 +56,146 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
   // Deletion modal states
   const [imageToDelete, setImageToDelete] = useState<ReportImage | null>(null);
   const [showReportDeleteModal, setShowReportDeleteModal] = useState(false);
+
+  // Inline TestPreset editing states
+  const [editingParamId, setEditingParamId] = useState<number | string | null>(
+    null,
+  );
+  const [editFormData, setEditFormData] = useState<{
+    presetId: number;
+    name: string;
+    category: string;
+    unit: string;
+    refMin: string;
+    refMax: string;
+    refText: string;
+    clinicalMethod: string;
+    valueNumber: string;
+    valueText: string;
+  } | null>(null);
+  const [isSavingPreset, setIsSavingPreset] = useState(false);
+  const [saveSuccessId, setSaveSuccessId] = useState<number | string | null>(
+    null,
+  );
+
+  function handleStartEdit(param: ReportParameter) {
+    if (!param.testPresetId) return;
+    setEditingParamId(param.id);
+    setEditFormData({
+      presetId: Number(param.testPresetId),
+      name: param.testPreset?.name || param.paramName,
+      category: param.testPreset?.category || param.category || "General",
+      unit: param.testPreset?.unit ?? param.unit ?? "",
+      refMin:
+        param.testPreset?.refMin !== undefined && param.testPreset?.refMin !== null
+          ? String(param.testPreset.refMin)
+          : param.refMin !== undefined && param.refMin !== null
+            ? String(param.refMin)
+            : "",
+      refMax:
+        param.testPreset?.refMax !== undefined && param.testPreset?.refMax !== null
+          ? String(param.testPreset.refMax)
+          : param.refMax !== undefined && param.refMax !== null
+            ? String(param.refMax)
+            : "",
+      refText: param.testPreset?.refText ?? param.refText ?? "",
+      clinicalMethod:
+        param.testPreset?.clinicalMethod ?? param.clinicalMethod ?? "",
+      valueNumber:
+        param.valueNumber !== undefined && param.valueNumber !== null
+          ? String(param.valueNumber)
+          : "",
+      valueText: param.valueText ?? "",
+    });
+  }
+
+  function handleCancelEdit() {
+    setEditingParamId(null);
+    setEditFormData(null);
+  }
+
+  async function handleSavePreset(param: ReportParameter) {
+    if (!editFormData || !editFormData.presetId) return;
+    setIsSavingPreset(true);
+    try {
+      const minVal =
+        editFormData.refMin.trim() !== "" ? parseFloat(editFormData.refMin) : null;
+      const maxVal =
+        editFormData.refMax.trim() !== "" ? parseFloat(editFormData.refMax) : null;
+      const numVal =
+        editFormData.valueNumber.trim() !== ""
+          ? parseFloat(editFormData.valueNumber)
+          : null;
+      const parsedNumVal = numVal !== null && !isNaN(numVal) ? numVal : null;
+      const textVal = editFormData.valueText.trim() || null;
+
+      const payloadData = {
+        name: editFormData.name.trim(),
+        category: editFormData.category.trim(),
+        unit: editFormData.unit.trim() || null,
+        refMin: minVal !== null && !isNaN(minVal) ? minVal : null,
+        refMax: maxVal !== null && !isNaN(maxVal) ? maxVal : null,
+        refText: editFormData.refText.trim() || null,
+        clinicalMethod: editFormData.clinicalMethod.trim() || null,
+        valueNumber: parsedNumVal,
+        valueText: textVal,
+      };
+
+      const res = await updateTestPresetByIdAction({
+        presetId: editFormData.presetId,
+        reportId: report.id,
+        reportParameterId: param.id,
+        data: payloadData,
+      });
+
+      if (res.success && res.preset) {
+        let updatedStatus = param.status;
+        if (parsedNumVal !== null) {
+          if (payloadData.refMax !== null && parsedNumVal > payloadData.refMax) {
+            updatedStatus = "HIGH";
+          } else if (payloadData.refMin !== null && parsedNumVal < payloadData.refMin) {
+            updatedStatus = "LOW";
+          } else if (payloadData.refMin !== null || payloadData.refMax !== null) {
+            updatedStatus = "NORMAL";
+          }
+        }
+
+        setParameters((prev) =>
+          prev.map((p) => {
+            if (p.id === param.id) {
+              return {
+                ...p,
+                paramName: payloadData.name,
+                category: payloadData.category,
+                unit: payloadData.unit,
+                refMin: payloadData.refMin,
+                refMax: payloadData.refMax,
+                refText: payloadData.refText,
+                clinicalMethod: payloadData.clinicalMethod,
+                valueNumber: parsedNumVal,
+                valueText: textVal,
+                status: updatedStatus,
+                testPresetId: res.preset.id as number,
+                testPreset: res.preset,
+              };
+            }
+            return p;
+          }),
+        );
+
+        setSaveSuccessId(param.id);
+        setTimeout(() => setSaveSuccessId(null), 3000);
+        setEditingParamId(null);
+        setEditFormData(null);
+        router.refresh();
+      }
+    } catch (err) {
+      console.error("Failed to update test preset:", err);
+      alert("Failed to update test preset. Please check the inputs and try again.");
+    } finally {
+      setIsSavingPreset(false);
+    }
+  }
 
   const filteredParameters =
     activeCategory === "ALL"
@@ -376,7 +523,8 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
                   <th className="px-6 py-3.5">Parameter & Methodology</th>
                   <th className="px-4 py-3.5">Result</th>
                   <th className="px-6 py-3.5">Biological Range Visual Gauge</th>
-                  <th className="px-4 py-3.5 text-right">Status</th>
+                  <th className="px-4 py-3.5 text-center">Status</th>
+                  <th className="px-4 py-3.5 text-right">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium">
@@ -384,6 +532,344 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
                   const isHigh = param.status === "HIGH";
                   const isLow = param.status === "LOW";
                   const isBorderline = param.status === "BORDERLINE";
+                  const isEditing = editingParamId === param.id && editFormData;
+
+                  if (isEditing) {
+                    return (
+                      <tr
+                        key={param.id}
+                        className="bg-teal-50/40 border-y-2 border-teal-500/30"
+                      >
+                        <td colSpan={5} className="p-4 sm:p-5">
+                          <div className="bg-white rounded-2xl border border-teal-200/90 shadow-sm p-4 sm:p-5 space-y-4">
+                            {/* Header with Database Preset ID */}
+                            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-teal-100 text-teal-700 flex items-center justify-center font-bold">
+                                  <Database className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-xs font-black uppercase tracking-wider text-slate-900">
+                                      Inline Edit Test Preset
+                                    </span>
+                                    <span className="px-2 py-0.5 rounded-md font-mono text-[11px] font-extrabold bg-teal-100 text-teal-800 border border-teal-300">
+                                      Database ID: #{editFormData.presetId}
+                                    </span>
+                                  </div>
+                                  <span className="text-[11px] text-slate-500">
+                                    Updating will directly persist to TestPreset (ID: {editFormData.presetId}) in the database and recalculate this report parameter.
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={handleCancelEdit}
+                                  disabled={isSavingPreset}
+                                  className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSavePreset(param)}
+                                  disabled={isSavingPreset}
+                                  className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-xl text-xs font-black text-white bg-teal-600 hover:bg-teal-700 active:scale-95 shadow-sm transition-all cursor-pointer disabled:opacity-50"
+                                >
+                                  {isSavingPreset ? (
+                                    <>
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                                      <span>Saving...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Check className="w-3.5 h-3.5" />
+                                      <span>Save Preset (ID: #{editFormData.presetId})</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Section 1: Actual Patient Test Result in Report */}
+                            <div className="p-3.5 bg-teal-50/60 rounded-xl border border-teal-200/80 space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[11px] font-black uppercase tracking-wider text-teal-900 flex items-center gap-1.5">
+                                  <FileText className="w-3.5 h-3.5 text-teal-700" />
+                                  <span>Actual Patient Test Result (Report Parameter)</span>
+                                </span>
+                                <span className="text-[10px] text-teal-700 font-medium">
+                                  Editing this will directly update the reported value for this patient
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                                {/* Numeric Value */}
+                                <div className="space-y-1 sm:col-span-1">
+                                  <label className="text-[10px] font-bold uppercase tracking-wider text-teal-900 flex items-center justify-between">
+                                    <span>Result Value (Numeric)</span>
+                                    <span className="text-[10px] font-normal text-teal-700 font-mono">
+                                      {editFormData.unit || ""}
+                                    </span>
+                                  </label>
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    value={editFormData.valueNumber}
+                                    onChange={(e) =>
+                                      setEditFormData({
+                                        ...editFormData,
+                                        valueNumber: e.target.value,
+                                      })
+                                    }
+                                    className="w-full px-3 py-1.5 rounded-lg border border-teal-300 text-sm font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white font-mono shadow-2xs"
+                                    placeholder="e.g. 209"
+                                  />
+                                </div>
+
+                                {/* Text/Qualitative Value */}
+                                <div className="space-y-1 sm:col-span-2">
+                                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                                    Qualitative / Text Result (Optional if numeric)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={editFormData.valueText}
+                                    onChange={(e) =>
+                                      setEditFormData({
+                                        ...editFormData,
+                                        valueText: e.target.value,
+                                      })
+                                    }
+                                    className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+                                    placeholder="e.g. Normocytic Normochromic, Pale Yellow, Negative"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Section 2: Preset Standards & Methodology Grid */}
+                            <div className="space-y-2">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                                Preset Standards & Biological Reference Range (Database TestPreset)
+                              </span>
+
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 text-xs">
+                                {/* Name */}
+                                <div className="space-y-1 sm:col-span-2">
+                                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                    Preset Name
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={editFormData.name}
+                                    onChange={(e) =>
+                                      setEditFormData({
+                                        ...editFormData,
+                                        name: e.target.value,
+                                      })
+                                    }
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+                                    placeholder="e.g. Hemoglobin"
+                                  />
+                                </div>
+
+                                {/* Category */}
+                                <div className="space-y-1 sm:col-span-1">
+                                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                    Category
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={editFormData.category}
+                                    onChange={(e) =>
+                                      setEditFormData({
+                                        ...editFormData,
+                                        category: e.target.value,
+                                      })
+                                    }
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+                                    placeholder="e.g. Complete Blood Count"
+                                  />
+                                </div>
+
+                                {/* Clinical Method */}
+                                <div className="space-y-1 sm:col-span-1">
+                                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                    Clinical Method
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={editFormData.clinicalMethod}
+                                    onChange={(e) =>
+                                      setEditFormData({
+                                        ...editFormData,
+                                        clinicalMethod: e.target.value,
+                                      })
+                                    }
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+                                    placeholder="e.g. SLS method"
+                                  />
+                                </div>
+
+                                {/* Unit */}
+                                <div className="space-y-1 sm:col-span-1">
+                                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                    Unit
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={editFormData.unit}
+                                    onChange={(e) =>
+                                      setEditFormData({
+                                        ...editFormData,
+                                        unit: e.target.value,
+                                      })
+                                    }
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+                                    placeholder="e.g. g/dL, mg/dL"
+                                  />
+                                </div>
+
+                                {/* Ref Min */}
+                                <div className="space-y-1 sm:col-span-1">
+                                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                    Biological Min
+                                  </label>
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    value={editFormData.refMin}
+                                    onChange={(e) =>
+                                      setEditFormData({
+                                        ...editFormData,
+                                        refMin: e.target.value,
+                                      })
+                                    }
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white font-mono"
+                                    placeholder="e.g. 12"
+                                  />
+                                </div>
+
+                                {/* Ref Max */}
+                                <div className="space-y-1 sm:col-span-1">
+                                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                    Biological Max
+                                  </label>
+                                  <input
+                                    type="number"
+                                    step="any"
+                                    value={editFormData.refMax}
+                                    onChange={(e) =>
+                                      setEditFormData({
+                                        ...editFormData,
+                                        refMax: e.target.value,
+                                      })
+                                    }
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white font-mono"
+                                    placeholder="e.g. 15"
+                                  />
+                                </div>
+
+                                {/* Ref Text */}
+                                <div className="space-y-1 sm:col-span-full">
+                                  <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                                    Qualitative Reference Text (Optional for non-numeric/qualitative tests)
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={editFormData.refText}
+                                    onChange={(e) =>
+                                      setEditFormData({
+                                        ...editFormData,
+                                        refText: e.target.value,
+                                      })
+                                    }
+                                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-teal-500 bg-white"
+                                    placeholder="e.g. Negative, Pale Yellow, Clear, Desirable: <200"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Section 3: Dynamic Live Range Bar & Status Preview */}
+                            {(() => {
+                              const previewNum =
+                                editFormData.valueNumber.trim() !== ""
+                                  ? parseFloat(editFormData.valueNumber)
+                                  : null;
+                              const previewMin =
+                                editFormData.refMin.trim() !== ""
+                                  ? parseFloat(editFormData.refMin)
+                                  : null;
+                              const previewMax =
+                                editFormData.refMax.trim() !== ""
+                                  ? parseFloat(editFormData.refMax)
+                                  : null;
+
+                              let previewStatus = "NORMAL";
+                              if (previewNum !== null && !isNaN(previewNum)) {
+                                if (previewMax !== null && previewNum > previewMax) {
+                                  previewStatus = "HIGH";
+                                } else if (previewMin !== null && previewNum < previewMin) {
+                                  previewStatus = "LOW";
+                                } else if (previewMin !== null || previewMax !== null) {
+                                  previewStatus = "NORMAL";
+                                }
+                              }
+
+                              return (
+                                <div className="p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                                  <div className="flex items-center gap-2.5">
+                                    <Sparkles className="w-4 h-4 text-teal-600 shrink-0" />
+                                    <div>
+                                      <div className="flex items-center gap-2 text-xs font-bold text-slate-800 flex-wrap">
+                                        <span>Live Result Gauge Preview:</span>
+                                        <span className="font-mono font-black text-slate-900">
+                                          {previewNum !== null && !isNaN(previewNum)
+                                            ? previewNum
+                                            : editFormData.valueText || "—"}{" "}
+                                          {editFormData.unit}
+                                        </span>
+                                        <span
+                                          className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black border ${
+                                            previewStatus === "HIGH"
+                                              ? "bg-rose-50 text-rose-700 border-rose-200"
+                                              : previewStatus === "LOW"
+                                                ? "bg-blue-50 text-blue-700 border-blue-200"
+                                                : "bg-emerald-50 text-emerald-700 border-emerald-200"
+                                          }`}
+                                        >
+                                          {previewStatus}
+                                        </span>
+                                      </div>
+                                      <span className="text-[11px] text-slate-400">
+                                        Biological Reference Interval: {previewMin !== null ? previewMin : "—"} to {previewMax !== null ? previewMax : "—"} {editFormData.unit}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {previewNum !== null && !isNaN(previewNum) && (
+                                    <div className="w-full md:w-80">
+                                      <RangeBar
+                                        value={previewNum}
+                                        min={previewMin}
+                                        max={previewMax}
+                                        unit={editFormData.unit}
+                                        status={previewStatus}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  }
 
                   return (
                     <tr
@@ -391,9 +877,20 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
                       className="hover:bg-slate-50/50 transition-colors"
                     >
                       <td className="px-6 py-4">
-                        <span className="font-extrabold text-slate-900 block">
-                          {param.paramName}
-                        </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-extrabold text-slate-900 block">
+                            {param.paramName}
+                          </span>
+                          {param.testPresetId && (
+                            <span
+                              title={`Database TestPreset ID: ${param.testPresetId}`}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-mono font-bold bg-teal-50 text-teal-700 border border-teal-200/80 shadow-2xs"
+                            >
+                              <Database className="w-2.5 h-2.5 text-teal-600" />
+                              DB ID: #{param.testPresetId}
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[11px] text-slate-400 font-normal">
                           {param.clinicalMethod || param.category}
                         </span>
@@ -437,7 +934,7 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
                         )}
                       </td>
 
-                      <td className="px-4 py-4 text-right">
+                      <td className="px-4 py-4 text-center">
                         <span
                           className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-black border ${
                             isHigh
@@ -451,6 +948,27 @@ export function ReportDetailClient({ report }: ReportDetailClientProps) {
                         >
                           {param.status}
                         </span>
+                      </td>
+
+                      <td className="px-4 py-4 text-right">
+                        {saveSuccessId === param.id ? (
+                          <span
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200"
+                            title="Saved!"
+                          >
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleStartEdit(param)}
+                            className="inline-flex items-center justify-center w-8 h-8 rounded-xl text-slate-500 bg-slate-100 hover:bg-teal-50 hover:text-teal-700 border border-slate-200/70 hover:border-teal-300 transition-all shadow-2xs cursor-pointer group"
+                            title={`Edit Test (Database Preset ID: ${param.testPresetId})`}
+                            aria-label={`Edit ${param.paramName}`}
+                          >
+                            <Pencil className="w-3.5 h-3.5 text-slate-400 group-hover:text-teal-600 transition-colors" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );

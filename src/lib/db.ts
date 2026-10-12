@@ -261,6 +261,78 @@ export const db = {
           images: true,
         },
       });
+
+      if (!report) return null;
+
+      // Ensure every parameter has its associated TestPreset and database ID attached
+      if (report.parameters && report.parameters.length > 0) {
+        const lab = report.labName ? report.labName.trim() : null;
+        const dbPresets = await prisma.testPreset.findMany({
+          orderBy: { name: "asc" },
+        });
+
+        const enhancedParameters = await Promise.all(
+          report.parameters.map(async (param) => {
+            const pName = param.paramName.trim().toLowerCase();
+            let matched = dbPresets.find(
+              (p) =>
+                p.name.trim().toLowerCase() === pName &&
+                lab &&
+                p.labName?.trim().toLowerCase() === lab.toLowerCase(),
+            );
+
+            if (!matched) {
+              matched = dbPresets.find(
+                (p) => p.name.trim().toLowerCase() === pName,
+              );
+            }
+
+            if (!matched) {
+              try {
+                matched = await prisma.testPreset.create({
+                  data: {
+                    customId: `preset-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                    labName: lab,
+                    name: param.paramName.trim(),
+                    category: param.category?.trim() || "General",
+                    unit: param.unit?.trim() || null,
+                    refMin:
+                      param.refMin !== undefined && param.refMin !== null
+                        ? Number(param.refMin)
+                        : null,
+                    refMax:
+                      param.refMax !== undefined && param.refMax !== null
+                        ? Number(param.refMax)
+                        : null,
+                    refText: param.refText?.trim() || null,
+                    clinicalMethod: param.clinicalMethod?.trim() || null,
+                    source: "UPLOADED_REPORT",
+                  },
+                });
+                dbPresets.push(matched);
+              } catch (err) {
+                console.warn(
+                  "Could not auto-create preset for parameter:",
+                  param.paramName,
+                  err,
+                );
+              }
+            }
+
+            return {
+              ...param,
+              testPresetId: matched ? matched.id : null,
+              testPreset: matched || null,
+            };
+          }),
+        );
+
+        return {
+          ...report,
+          parameters: enhancedParameters,
+        } as unknown as MedicalReport;
+      }
+
       return (report as unknown as MedicalReport) || null;
     } catch (err) {
       console.warn(`[Database] Failed to fetch report ${id}:`, err);
@@ -731,6 +803,131 @@ export const db = {
       },
     });
     return created as unknown as TestPreset;
+  },
+
+  async updateTestPresetById(
+    id: number,
+    presetData: {
+      name?: string;
+      category?: string;
+      unit?: string | null;
+      refMin?: number | null;
+      refMax?: number | null;
+      refText?: string | null;
+      clinicalMethod?: string | null;
+    },
+  ): Promise<TestPreset> {
+    const updated = await prisma.testPreset.update({
+      where: { id: Number(id) },
+      data: {
+        ...(presetData.name !== undefined ? { name: presetData.name.trim() } : {}),
+        ...(presetData.category !== undefined
+          ? { category: presetData.category.trim() }
+          : {}),
+        ...(presetData.unit !== undefined
+          ? { unit: presetData.unit?.trim() || null }
+          : {}),
+        ...(presetData.refMin !== undefined
+          ? {
+              refMin:
+                presetData.refMin !== null && !isNaN(Number(presetData.refMin))
+                  ? Number(presetData.refMin)
+                  : null,
+            }
+          : {}),
+        ...(presetData.refMax !== undefined
+          ? {
+              refMax:
+                presetData.refMax !== null && !isNaN(Number(presetData.refMax))
+                  ? Number(presetData.refMax)
+                  : null,
+            }
+          : {}),
+        ...(presetData.refText !== undefined
+          ? { refText: presetData.refText?.trim() || null }
+          : {}),
+        ...(presetData.clinicalMethod !== undefined
+          ? { clinicalMethod: presetData.clinicalMethod?.trim() || null }
+          : {}),
+        updatedAt: new Date(),
+      },
+    });
+    return updated as unknown as TestPreset;
+  },
+
+  async syncReportParameterWithPreset(
+    paramId: number,
+    data: {
+      name?: string;
+      category?: string;
+      unit?: string | null;
+      refMin?: number | null;
+      refMax?: number | null;
+      refText?: string | null;
+      clinicalMethod?: string | null;
+      valueNumber?: number | null;
+      valueText?: string | null;
+    },
+  ): Promise<void> {
+    const existing = await prisma.reportParameter.findUnique({
+      where: { id: Number(paramId) },
+    });
+    if (!existing) return;
+
+    const valueNumber =
+      data.valueNumber !== undefined
+        ? data.valueNumber !== null && !isNaN(Number(data.valueNumber))
+          ? Number(data.valueNumber)
+          : null
+        : existing.valueNumber;
+    const valueText =
+      data.valueText !== undefined
+        ? data.valueText?.trim() || null
+        : existing.valueText;
+
+    const refMin =
+      data.refMin !== undefined
+        ? data.refMin !== null && !isNaN(Number(data.refMin))
+          ? Number(data.refMin)
+          : null
+        : existing.refMin;
+    const refMax =
+      data.refMax !== undefined
+        ? data.refMax !== null && !isNaN(Number(data.refMax))
+          ? Number(data.refMax)
+          : null
+        : existing.refMax;
+
+    // Recalculate status if numeric value exists
+    let status = existing.status;
+    if (valueNumber !== null && valueNumber !== undefined) {
+      const val = valueNumber;
+      if (refMax !== null && val > refMax) {
+        status = "HIGH";
+      } else if (refMin !== null && val < refMin) {
+        status = "LOW";
+      } else if (refMin !== null || refMax !== null) {
+        status = "NORMAL";
+      }
+    }
+
+    await prisma.reportParameter.update({
+      where: { id: Number(paramId) },
+      data: {
+        ...(data.name !== undefined ? { paramName: data.name.trim() } : {}),
+        ...(data.category !== undefined ? { category: data.category.trim() } : {}),
+        ...(data.unit !== undefined ? { unit: data.unit?.trim() || null } : {}),
+        valueNumber,
+        valueText,
+        refMin,
+        refMax,
+        ...(data.refText !== undefined ? { refText: data.refText?.trim() || null } : {}),
+        ...(data.clinicalMethod !== undefined
+          ? { clinicalMethod: data.clinicalMethod?.trim() || null }
+          : {}),
+        status,
+      },
+    });
   },
 
   async clearAllData(): Promise<void> {

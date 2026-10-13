@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { cache } from "react";
 import { PrismaClient } from "@prisma/client";
 import { FamilyMember, MedicalReport, DailyVital, TestPreset } from "@/types";
 import { initialTestPresets } from "./seed-data";
@@ -99,7 +100,7 @@ export const db = {
   },
 
   // Members
-  async getMembers(): Promise<FamilyMember[]> {
+  getMembers: cache(async function getMembers(): Promise<FamilyMember[]> {
     const cacheKey = "members:all";
     const cached = memoryCache.get<FamilyMember[]>(cacheKey);
     if (cached) return cached;
@@ -126,13 +127,15 @@ export const db = {
       console.warn("[Database] Failed to fetch members:", err);
       return [];
     }
-  },
+  }),
 
   async getFamilyMembers(): Promise<FamilyMember[]> {
     return this.getMembers();
   },
 
-  async getMemberById(id: string | number): Promise<FamilyMember | null> {
+  getMemberById: cache(async function getMemberById(
+    id: string | number,
+  ): Promise<FamilyMember | null> {
     const cacheKey = `member:${id}`;
     const cached = memoryCache.get<FamilyMember>(cacheKey);
     if (cached) return cached;
@@ -172,7 +175,7 @@ export const db = {
       console.warn(`[Database] Failed to fetch member ${id}:`, err);
       return null;
     }
-  },
+  }),
 
   async createMember(data: Partial<FamilyMember>): Promise<FamilyMember> {
     const customId = data.customId || "member-" + Date.now();
@@ -341,7 +344,7 @@ export const db = {
   },
 
   // Reports
-  async getReports(): Promise<MedicalReport[]> {
+  getReports: cache(async function getReports(): Promise<MedicalReport[]> {
     const cacheKey = "reports:all";
     const cached = memoryCache.get<MedicalReport[]>(cacheKey);
     if (cached) return cached;
@@ -362,9 +365,11 @@ export const db = {
       console.warn("[Database] Failed to fetch reports:", err);
       return [];
     }
-  },
+  }),
 
-  async getReportById(id: string | number): Promise<MedicalReport | null> {
+  getReportById: cache(async function getReportById(
+    id: string | number,
+  ): Promise<MedicalReport | null> {
     const cacheKey = `report:${id}`;
     const cached = memoryCache.get<MedicalReport>(cacheKey);
     if (cached) return cached;
@@ -474,7 +479,7 @@ export const db = {
       console.warn(`[Database] Failed to fetch report ${id}:`, err);
       return null;
     }
-  },
+  }),
 
   async createReport(reportData: {
     familyMemberId: string | number;
@@ -677,7 +682,9 @@ export const db = {
   },
 
   // Daily Vitals (BP & Sugar)
-  async getVitals(familyMemberId?: string | number): Promise<DailyVital[]> {
+  getVitals: cache(async function getVitals(
+    familyMemberId?: string | number,
+  ): Promise<DailyVital[]> {
     const cacheKey = `vitals:${familyMemberId || "all"}`;
     const cached = memoryCache.get<DailyVital[]>(cacheKey);
     if (cached) return cached;
@@ -704,7 +711,7 @@ export const db = {
       console.warn("[Database] Failed to fetch vitals:", err);
       return [];
     }
-  },
+  }),
 
   async logVital(data: {
     familyMemberId: string | number;
@@ -778,7 +785,9 @@ export const db = {
   },
 
   // Test Presets (Lab-specific & General Clinical Biomarkers)
-  async getTestPresets(labName?: string | null): Promise<TestPreset[]> {
+  getTestPresets: cache(async function getTestPresets(
+    labName?: string | null,
+  ): Promise<TestPreset[]> {
     const cleanTargetLab = labName ? labName.trim().toLowerCase() : null;
     const cacheKey = `presets:${cleanTargetLab || "all"}`;
     const cached = memoryCache.get<TestPreset[]>(cacheKey);
@@ -834,7 +843,7 @@ export const db = {
       console.warn("[Database] Failed to fetch test presets:", err);
       return initialTestPresets;
     }
-  },
+  }),
 
   async savePresetsFromReport(
     labName: string | null | undefined,

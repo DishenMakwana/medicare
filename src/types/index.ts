@@ -109,6 +109,16 @@ export interface ExtractedReportResult {
   hasIncompleteExtraction?: boolean;
   unparsed_lines?: string[];
   extraction_quality?: string;
+  is_pdf?: boolean;
+  pdf_pages?: Array<{
+    page_number: number;
+    image_filename: string;
+    image_path?: string | null;
+    raw_text?: string;
+    parameters: any[];
+    unparsed_lines?: string[];
+    extraction_quality?: string;
+  }>;
   parameters: Array<{
     category: string;
     param_name: string;

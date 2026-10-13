@@ -28,42 +28,87 @@ export function MemberModal({
     }
     return "";
   });
+  const [ageYears, setAgeYears] = useState(() => {
+    if (initialAgeYears) return String(initialAgeYears);
+    if (initialDateOfBirth) {
+      const a = calculateAge(initialDateOfBirth);
+      return a !== null ? String(a) : "";
+    }
+    return "";
+  });
   const [bloodGroup, setBloodGroup] = useState("B+");
   const [aliases, setAliases] = useState(initialAliases);
   const [notes, setNotes] = useState("");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const calculatedAge = calculateAge(dateOfBirth);
 
   if (!isOpen) return null;
 
+  const handleDateChange = (val: string) => {
+    setDateOfBirth(val);
+    if (val) {
+      const computed = calculateAge(val);
+      if (computed !== null) {
+        setAgeYears(String(computed));
+      }
+    }
+  };
+
+  const handleAgeChange = (val: string) => {
+    setAgeYears(val);
+    const parsed = parseInt(val, 10);
+    if (!isNaN(parsed) && parsed >= 0 && parsed <= 125) {
+      const estimatedYear = new Date().getFullYear() - parsed;
+      setDateOfBirth(`${estimatedYear}-01-01`);
+    }
+  };
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      setErrorMessage("Please provide a name for this family member.");
+      return;
+    }
+
+    let parsedDobIso: string | undefined = undefined;
+    if (dateOfBirth) {
+      const d = new Date(dateOfBirth);
+      if (!isNaN(d.getTime())) {
+        parsedDobIso = d.toISOString();
+      }
+    }
+
+    const parsedAge = ageYears ? parseInt(ageYears, 10) : undefined;
+    const finalAge =
+      !isNaN(parsedAge as number) && (parsedAge as number) >= 0
+        ? parsedAge
+        : (calculateAge(parsedDobIso) ?? undefined);
 
     setIsSubmitting(true);
+    setErrorMessage(null);
     try {
       const created = await createFamilyMember({
-        name: name.trim(),
+        name: trimmedName,
         relation,
         gender,
-        dateOfBirth: dateOfBirth
-          ? new Date(dateOfBirth).toISOString()
-          : undefined,
-        ageYears: calculatedAge ?? undefined,
-        bloodGroup,
+        dateOfBirth: parsedDobIso,
+        ageYears: finalAge,
+        bloodGroup: bloodGroup || undefined,
         aliases: aliases.trim() || undefined,
         notes: notes.trim() || undefined,
       });
 
       setName("");
       setDateOfBirth("");
+      setAgeYears("");
       setAliases("");
       setNotes("");
+      setErrorMessage(null);
       onClose();
       if (onSuccess) onSuccess(created as unknown as FamilyMember);
     } catch (err: any) {
-      alert(err.message || "Failed to add member");
+      setErrorMessage(err.message || "Failed to add family member.");
     } finally {
       setIsSubmitting(false);
     }
@@ -71,7 +116,7 @@ export function MemberModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
-      <div className="bg-white rounded-2xl shadow-xl max-w-md w-full border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-xl max-w-lg w-full border border-slate-200 overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
           <div className="flex items-center gap-2.5">
             <div className="p-2 rounded-xl bg-teal-100 text-teal-700">
@@ -94,6 +139,12 @@ export function MemberModal({
           </button>
         </div>
 
+        {errorMessage && (
+          <div className="mx-6 mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold">
+            {errorMessage}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">
@@ -101,16 +152,12 @@ export function MemberModal({
             </label>
             <input
               type="text"
-              placeholder="e.g. Sarah or Michael"
+              placeholder="e.g. Muktaben Patel or Sarah"
               value={name}
               onChange={(e) => setName(e.target.value)}
               required
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none"
             />
-            <p className="text-[11px] text-slate-400 mt-1">
-              Only given name is saved (bhai, ben, kumar and surnames are
-              automatically removed).
-            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -156,33 +203,37 @@ export function MemberModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 mb-1 flex items-center justify-between">
-                <span>Birth Date *</span>
-                {calculatedAge !== null && (
-                  <span className="text-[10px] font-extrabold text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full border border-teal-200">
-                    {calculatedAge} Yrs
-                  </span>
-                )}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                Birth Date
               </label>
-              <div className="relative">
-                <input
-                  type="date"
-                  max={new Date().toISOString().split("T")[0]}
-                  value={dateOfBirth}
-                  onChange={(e) => setDateOfBirth(e.target.value)}
-                  required
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white text-slate-700"
-                />
-              </div>
-              <p className="text-[10px] text-slate-400 mt-1">
-                {calculatedAge !== null
-                  ? `Calculated dynamically: ${calculatedAge} years old`
-                  : "Age is computed dynamically from birthdate"}
-              </p>
+              <input
+                type="date"
+                max={new Date().toISOString().split("T")[0]}
+                value={dateOfBirth}
+                onChange={(e) => handleDateChange(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white text-slate-700"
+              />
             </div>
 
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                Age (Years)
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="125"
+                placeholder="e.g. 77"
+                value={ageYears}
+                onChange={(e) => handleAgeChange(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white text-slate-700 font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">
                 Blood Group
@@ -205,22 +256,32 @@ export function MemberModal({
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>
             </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1">
+                Aliases / OCR Names
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. Muktaben, Mukta"
+                value={aliases}
+                onChange={(e) => setAliases(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none"
+              />
+            </div>
           </div>
 
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">
-              Aliases / Name Variations on Reports
+              Health Notes / History (Optional)
             </label>
-            <input
-              type="text"
-              placeholder="e.g. Sarah Jenkins, SJ (comma separated)"
-              value={aliases}
-              onChange={(e) => setAliases(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none"
+            <textarea
+              rows={2}
+              placeholder="e.g. Known allergies, chronic conditions, regular medications..."
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none resize-none"
             />
-            <span className="text-[11px] text-slate-400 block mt-1">
-              Helps OCR auto-match when reports print names slightly differently
-            </span>
           </div>
 
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">

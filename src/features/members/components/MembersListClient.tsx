@@ -1,22 +1,27 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { MemberCard } from "./MemberCard";
 import { MemberModal } from "./MemberModal";
-import type { MembersListClientProps } from "@/types";
+import type { FamilyMember, MembersListClientProps } from "@/types";
 
 export function MembersListClient({ initialMembers }: MembersListClientProps) {
   const router = useRouter();
+  const [members, setMembers] = useState<FamilyMember[]>(initialMembers);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const totalMembers = initialMembers.length;
-  const totalReports = initialMembers.reduce(
+  useEffect(() => {
+    setMembers(initialMembers);
+  }, [initialMembers]);
+
+  const totalMembers = members.length;
+  const totalReports = members.reduce(
     (acc, m) => acc + (m.reports?.length || 0),
     0,
   );
-  const totalVitals = initialMembers.reduce(
+  const totalVitals = members.reduce(
     (acc, m) => acc + (m.vitals?.length || 0),
     0,
   );
@@ -91,7 +96,7 @@ export function MembersListClient({ initialMembers }: MembersListClientProps) {
 
       {/* Members Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {initialMembers.map((member) => (
+        {members.map((member) => (
           <MemberCard key={member.id} member={member} />
         ))}
       </div>
@@ -99,7 +104,17 @@ export function MembersListClient({ initialMembers }: MembersListClientProps) {
       <MemberModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSuccess={() => router.refresh()}
+        onSuccess={(created) => {
+          if (created) {
+            setMembers((prev) => {
+              const exists = prev.some((m) => m.id === created.id);
+              return exists
+                ? prev.map((m) => (m.id === created.id ? created : m))
+                : [created, ...prev];
+            });
+          }
+          router.refresh();
+        }}
       />
     </div>
   );

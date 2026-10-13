@@ -93,6 +93,11 @@ function deleteImageFileFromDisk(imageUrl: string | null | undefined) {
 
 // Unified Database Service directly invoking Prisma
 export const db = {
+  // Cache Management
+  clearCache(): void {
+    memoryCache.invalidateAll();
+  },
+
   // Members
   async getMembers(): Promise<FamilyMember[]> {
     const cacheKey = "members:all";
@@ -171,27 +176,54 @@ export const db = {
 
   async createMember(data: Partial<FamilyMember>): Promise<FamilyMember> {
     const customId = data.customId || "member-" + Date.now();
-    const cleanedName = cleanPersonName(data.name || "Family Member");
+    const memberName = data.name?.trim() || "Family Member";
+
+    let parsedDob: Date | null = null;
+    if (data.dateOfBirth) {
+      const d =
+        typeof data.dateOfBirth === "string"
+          ? new Date(data.dateOfBirth)
+          : data.dateOfBirth;
+      if (d instanceof Date && !isNaN(d.getTime())) {
+        parsedDob = d;
+      }
+    }
+
+    const numAge =
+      data.ageYears !== undefined && data.ageYears !== null
+        ? Number(data.ageYears)
+        : null;
     const calculatedAgeYears =
-      calculateAge(data.dateOfBirth, data.ageYears) ?? null;
+      calculateAge(parsedDob, numAge) ??
+      (numAge !== null && !isNaN(numAge) ? numAge : null);
 
     const created = await prisma.familyMember.create({
       data: {
         customId,
-        name: cleanedName,
+        name: memberName,
         aliases: data.aliases || null,
         gender: data.gender || null,
-        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
+        dateOfBirth: parsedDob,
         ageYears: calculatedAgeYears,
         bloodGroup: data.bloodGroup || null,
         relation: data.relation || "Family",
         notes: data.notes || null,
         avatarUrl: data.avatarUrl || null,
       },
+      include: {
+        reports: {
+          select: {
+            id: true,
+            reportDate: true,
+            title: true,
+            overallStatus: true,
+          },
+        },
+        vitals: { orderBy: { recordDate: "desc" }, take: 5 },
+      },
     });
 
-    memoryCache.invalidatePrefix("member");
-    memoryCache.invalidatePrefix("reports");
+    memoryCache.invalidateAll();
 
     return created as unknown as FamilyMember;
   },
@@ -202,10 +234,28 @@ export const db = {
   ): Promise<FamilyMember | null> {
     const numId = typeof id === "number" ? id : parseInt(String(id), 10);
     const isNumeric = !isNaN(numId);
+
+    let parsedDob: Date | null | undefined = undefined;
+    if (data.dateOfBirth !== undefined) {
+      if (!data.dateOfBirth) {
+        parsedDob = null;
+      } else {
+        const d =
+          typeof data.dateOfBirth === "string"
+            ? new Date(data.dateOfBirth)
+            : data.dateOfBirth;
+        parsedDob = d instanceof Date && !isNaN(d.getTime()) ? d : null;
+      }
+    }
+
+    const numAge =
+      data.ageYears !== undefined && data.ageYears !== null
+        ? Number(data.ageYears)
+        : null;
     const calculatedAgeYears =
-      data.dateOfBirth !== undefined
-        ? calculateAge(data.dateOfBirth, data.ageYears)
-        : data.ageYears;
+      parsedDob !== undefined
+        ? (calculateAge(parsedDob, numAge) ?? numAge)
+        : numAge;
 
     let targetId: number | null = isNumeric ? numId : null;
     if (targetId === null) {
@@ -220,14 +270,10 @@ export const db = {
     const updated = await prisma.familyMember.update({
       where: { id: targetId },
       data: {
-        ...(data.name ? { name: cleanPersonName(data.name) } : {}),
+        ...(data.name ? { name: data.name.trim() } : {}),
         ...(data.aliases !== undefined ? { aliases: data.aliases } : {}),
         ...(data.gender !== undefined ? { gender: data.gender } : {}),
-        ...(data.dateOfBirth !== undefined
-          ? {
-              dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
-            }
-          : {}),
+        ...(parsedDob !== undefined ? { dateOfBirth: parsedDob } : {}),
         ...(calculatedAgeYears !== undefined
           ? { ageYears: calculatedAgeYears }
           : {}),
@@ -238,10 +284,20 @@ export const db = {
         ...(data.notes !== undefined ? { notes: data.notes } : {}),
         ...(data.avatarUrl !== undefined ? { avatarUrl: data.avatarUrl } : {}),
       },
+      include: {
+        reports: {
+          select: {
+            id: true,
+            reportDate: true,
+            title: true,
+            overallStatus: true,
+          },
+        },
+        vitals: { orderBy: { recordDate: "desc" }, take: 5 },
+      },
     });
 
-    memoryCache.invalidatePrefix("member");
-    memoryCache.invalidatePrefix("reports");
+    memoryCache.invalidateAll();
 
     return updated as unknown as FamilyMember;
   },

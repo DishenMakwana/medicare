@@ -14,30 +14,46 @@ export async function createFamilyMember(formData: {
   relation?: string;
   notes?: string;
 }) {
-  const originalName = (formData.name || "").trim();
-  const cleanedName = cleanPersonName(originalName);
+  const enteredName = (formData.name || "").trim();
+  if (!enteredName) {
+    throw new Error("Member name is required.");
+  }
 
-  // Preserve original entered name in aliases for search / matching
-  const aliasList = formData.aliases
-    ? formData.aliases
-        .split(",")
-        .map((a) => a.trim())
-        .filter(Boolean)
-    : [];
+  // Derive normalized alias for OCR matching (e.g. Muktaben -> Mukta)
+  const normalizedAlias = cleanPersonName(enteredName);
+
+  const aliasSet = new Set<string>();
+  if (formData.aliases) {
+    formData.aliases
+      .split(",")
+      .map((a) => a.trim())
+      .filter(Boolean)
+      .forEach((a) => aliasSet.add(a));
+  }
+
+  // Preserve both the entered name and normalized variant in aliases for OCR matching
   if (
-    originalName &&
-    originalName.toLowerCase() !== cleanedName.toLowerCase() &&
-    !aliasList.includes(originalName)
+    normalizedAlias &&
+    normalizedAlias.toLowerCase() !== enteredName.toLowerCase()
   ) {
-    aliasList.unshift(originalName);
+    aliasSet.add(normalizedAlias);
+  }
+  if (enteredName) {
+    aliasSet.add(enteredName);
   }
 
   const created = await db.createMember({
     ...formData,
-    name: cleanedName,
-    aliases: aliasList.join(", ") || undefined,
+    name: enteredName, // Keep exact entered name for UI display & DB storage
+    aliases: Array.from(aliasSet).join(", ") || undefined,
   });
-  revalidatePath("/");
-  revalidatePath("/members");
+
+  try {
+    revalidatePath("/");
+    revalidatePath("/members");
+  } catch {
+    // Gracefully continue outside Next.js request context
+  }
+
   return created;
 }

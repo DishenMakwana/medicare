@@ -7,6 +7,8 @@ import sys
 import os
 import re
 import json
+import shutil
+import subprocess
 from typing import List, Optional
 from pydantic import BaseModel, Field
 from PIL import Image, ImageOps, ImageEnhance
@@ -20,6 +22,16 @@ try:
         pytesseract.pytesseract.tesseract_cmd = '/usr/local/bin/tesseract'
 except ImportError:
     pytesseract = None
+
+
+def find_poppler_tool(name: str) -> Optional[str]:
+    p = shutil.which(name)
+    if p:
+        return p
+    for path in (f"/opt/homebrew/bin/{name}", f"/usr/local/bin/{name}", f"/usr/bin/{name}", f"/bin/{name}"):
+        if os.path.exists(path) and os.access(path, os.X_OK):
+            return path
+    return None
 
 
 class ClinicalParameter(BaseModel):
@@ -114,6 +126,8 @@ PARAM_CATALOG = {
     # Metabolic & Inflammatory
     "esr": {"name": "ESR", "cat": "Metabolic & Inflammatory", "unit": "mm/hr", "min": 0.0, "max": 12.0, "method": "Capillary photometer"},
     "fasting_glucose": {"name": "Fasting Plasma Glucose", "cat": "Metabolic & Inflammatory", "unit": "mg/dL", "min": 70.0, "max": 99.0, "method": "Hexokinase"},
+    "hba1c": {"name": "HbA1c (Glycated Hemoglobin)", "cat": "Metabolic & Inflammatory", "unit": "%", "min": 4.0, "max": 5.6, "method": "HPLC"},
+    "estimated_average_glucose": {"name": "Estimated Average Glucose (eAG)", "cat": "Metabolic & Inflammatory", "unit": "mg/dL", "min": 70.0, "max": 126.0, "method": "Calculated"},
     "ra_factor": {"name": "RA Factor", "cat": "Metabolic & Inflammatory", "unit": "IU/mL", "min": 0.0, "max": 14.0, "method": "Immunoturbidimetric"},
     "calcium": {"name": "Serum Calcium", "cat": "Metabolic & Inflammatory", "unit": "mg/dL", "min": 8.5, "max": 10.1, "method": "O-Cresolphthalein"},
     "phosphorous": {"name": "Serum Phosphorous", "cat": "Metabolic & Inflammatory", "unit": "mg/dL", "min": 2.5, "max": 4.5, "method": "Phosphomolybdate"},
@@ -191,9 +205,9 @@ def normalize_date_string(raw: Optional[str]) -> Optional[str]:
     raw = raw.strip()
     if re.match(r'^\d{4}-\d{2}-\d{2}', raw):
         return raw
-    m = re.search(r'(\d{1,2})[\/\-\s]([A-Za-z0-9]{2,4})[\/\-\s](\d{2,4})(?:\s+(\d{1,2})[:\.]?(\d{2}))?', raw)
+    m = re.search(r'(\d{1,2})[\/\-\s]([A-Za-z0-9]{2,4})[\/\-\s](\d{2,4})(?:\s+(\d{1,2})[:\.]?(\d{2})(?:\s*([AaPp][Mm]))?)?', raw)
     if m:
-        day, mon_raw, yr, hr, mn = m.groups()
+        day, mon_raw, yr, hr, mn, ampm = m.groups()
         day = day.zfill(2)
         if len(yr) == 2:
             yr = f"20{yr}"
@@ -209,9 +223,13 @@ def normalize_date_string(raw: Optional[str]) -> Optional[str]:
             else:
                 mon = '10'
         if hr and mn:
-            hr = hr.zfill(2)
-            mn = mn.zfill(2)
-            return f"{yr}-{mon}-{day} {hr}:{mn}"
+            h = int(hr)
+            if ampm:
+                if ampm.upper() == 'PM' and h < 12:
+                    h += 12
+                elif ampm.upper() == 'AM' and h == 12:
+                    h = 0
+            return f"{yr}-{mon}-{day} {str(h).zfill(2)}:{mn}"
         return f"{yr}-{mon}-{day}"
     return raw
 
@@ -234,41 +252,49 @@ def parse_clinical_text(text: str, header_text: Optional[str] = None) -> Extract
     # 1. Parse Lab Name
     if re.search(r'unipath', combined_text, re.IGNORECASE):
         report.lab_name = "Unipath Specialty Laboratory Ltd."
+    elif re.search(r'metropolis', combined_text, re.IGNORECASE):
+        report.lab_name = "Metropolis Healthcare Ltd."
     else:
         lab_m = re.search(r'([A-Za-z\s]+(Laboratory|Diagnostics|Hospital|Clinic|Pathology))', combined_text)
         if lab_m:
             report.lab_name = lab_m.group(1).strip()
             
-    # 2. Parse Registration No
-    reg_m = re.search(r'Reg\.?\s*No\.?\s*[:\-]?\s*([0-9]{5,}[0-9A-Za-z]*)', combined_text, re.IGNORECASE)
+    # 2. Parse Registration No / PID / VID
+    reg_m = re.search(r'PID\s*(?:No|Na|N0|\.)?\.?\s*[:\-]?\s*([0-9A-Za-z]+)', combined_text, re.IGNORECASE)
     if not reg_m:
-        reg_m = re.search(r'Reg\.?\s*No\.?\s*[:\-]?\s*([0-9A-Za-z]+)', combined_text, re.IGNORECASE)
-    if reg_m and reg_m.group(1).lower() != "name":
+        reg_m = re.search(r'VID\s*(?:No|Na|N0|\.)?\.?\s*[:\-]?\s*([0-9A-Za-z]+)', combined_text, re.IGNORECASE)
+    if not reg_m:
+        reg_m = re.search(r'Reg\.?\s*(?:No|Na|N0)?\.?\s*[:\-]?\s*([0-9]{5,}[0-9A-Za-z]*)', combined_text, re.IGNORECASE)
+    if not reg_m:
+        reg_m = re.search(r'Reg\.?\s*(?:No|Na|N0)?\.?\s*[:\-]?\s*([0-9A-Za-z]+)', combined_text, re.IGNORECASE)
+    if reg_m and reg_m.group(1).lower() not in ("name", "g"):
         report.registration_no = reg_m.group(1).strip()
         
     # 3. Parse Patient Name
-    name_m = re.search(r'Name\s*[:\-\s]\s*([A-Za-z\s\.]+?)(?=\s+(?:Age|Sex|Reg|Date|Report|Dispatch|\n))', combined_text, re.IGNORECASE)
+    name_m = re.search(r'Name\s*[:\-\s]\s*([A-Za-z\s\.]+?)(?=\s+(?:Age|Sex|Gender|VID|PID|Reg|Date|Report|Dispatch|\n))', combined_text, re.IGNORECASE)
     if name_m and len(name_m.group(1).strip()) > 3:
         raw_name = name_m.group(1).strip()
         report.raw_patient_name = raw_name
         report.clean_patient_name = clean_name(raw_name)
         
-    # 4. Parse Age & Sex
-    age_m = re.search(r'Age\s*[:\-]?\s*(\d+)\s*(?:Years|Yrs)?', combined_text, re.IGNORECASE)
+    # 4. Parse Age & Sex / Gender
+    age_m = re.search(r'(?:Age\s*(?:\/\s*Gender|\/\s*Sex)?|Age)\s*[:\-\s]\s*(\d+)', combined_text, re.IGNORECASE)
     if age_m:
         report.age = int(age_m.group(1))
-    sex_m = re.search(r'Sex\s*[:\-]?\s*(Female|Male|Other)', combined_text, re.IGNORECASE)
+    sex_m = re.search(r'(?:Gender|Sex)\s*[:\-\s].*?\b(Female|Male|Other)\b', combined_text, re.IGNORECASE)
+    if not sex_m:
+        sex_m = re.search(r'Sex\s*[:\-]?\s*(Female|Male|Other)', combined_text, re.IGNORECASE)
     if sex_m:
         report.gender = sex_m.group(1).capitalize()
         
     # 5. Parse Dates (Both Report Date and Collection Date)
     # Collection Date / Collected On
-    col_m = re.search(r'Collected\s*(?:On|Date|At)?\s*[:\-]?\s*([0-9]{1,2}[\/\-\s][A-Za-z0-9]{2,4}[\/\-\s][0-9]{2,4}(?:\s+[0-9]{1,4}(?:[:\.][0-9]{2})?)?)', combined_text, re.IGNORECASE)
+    col_m = re.search(r'Collected\s*(?:On|Date|At)?\s*[:\-]?\s*([0-9]{1,2}[\/\-\s][A-Za-z0-9]{2,4}[\/\-\s][0-9]{2,4}(?:\s+[0-9]{1,4}(?:[:\.][0-9]{2})?(?:\s*[AaPp][Mm])?)?)', combined_text, re.IGNORECASE)
     if col_m:
         report.collection_date = normalize_date_string(col_m.group(1))
         
-    # Report Date
-    rep_m = re.search(r'Report\s*Date\s*[:\-]?\s*([0-9]{1,2}[\/\-\s][A-Za-z0-9]{2,4}[\/\-\s][0-9]{2,4})', combined_text, re.IGNORECASE)
+    # Report Date / Reported On
+    rep_m = re.search(r'(?:Reported\s*(?:On|Date|At)?|Report\s*Date)\s*[:\-]?\s*([0-9]{1,2}[\/\-\s][A-Za-z0-9]{2,4}[\/\-\s][0-9]{2,4}(?:\s+[0-9]{1,4}(?:[:\.][0-9]{2})?(?:\s*[AaPp][Mm])?)?)', combined_text, re.IGNORECASE)
     if rep_m:
         report.report_date = normalize_date_string(rep_m.group(1))
     else:
@@ -346,7 +372,9 @@ def parse_clinical_text(text: str, header_text: Optional[str] = None) -> Extract
         "basophils": r'Basophils?\b[^\d\n]*?(\d+)',
         
         "esr": r'ESR[^\d\n]*?(\d+)\s*(?:mm\/hr|mm)?',
-        "fasting_glucose": r'(?:FASTING PLASMA GLUCOSE|GLUCOSE).*?(\d+)',
+        "fasting_glucose": r'(?<!AVERAGE\s)(?<!AVERAGE\s\()(?:FASTING\s*(?:PLASMA\s*)?GLUCOSE|\bFBS\b|\bFASTING\s+BLOOD\s+SUGAR\b).*?(\d+)',
+        "hba1c": r'(?:HbA1c|HbA1C|Glycated\s*Ha?emoglobin)[\s\S]{0,120}?\b(\d{1,2}\.\d)\b',
+        "estimated_average_glucose": r'(?:Estimated\s*Average\s*Glucose|\beAG\b)[^\d\n]*?(\d+)',
         "ra_factor": r'RA\s*FACTOR[^\d\n]*?(\d+[\.,]?\d*)',
         "calcium": r'(?:CALCIUM[,\s]+(?:Serum|Total)|(?:Serum|Total|S\.)[,\s]+CALCIUM|\bCALCIUM\b)[^\d\n]*?(\d+)(?:(?:[.,·]|\s*[.,·]\s*)(\d{1,2})|([aAlI])\b)?',
         "phosphorous": r'(?:PHOSPHOROUS|PHOSPHORUS)[,\s]*(?:Serum)?[^\d\n]*?(\d+)(?:(?:[.,·]|\s*[.,·]\s*)(\d{1,2})|([aAlI])\b)?',
@@ -521,6 +549,22 @@ def parse_clinical_text(text: str, header_text: Optional[str] = None) -> Extract
                 meta = PARAM_CATALOG[slug]
                 st = evaluate_status(val, meta.get("min"), meta.get("max"))
                 ref_txt = f"{meta.get('min')} - {meta.get('max')}"
+                if slug == "hba1c":
+                    if val <= 5.6:
+                        st = "NORMAL"
+                    elif val <= 6.4:
+                        st = "BORDERLINE"
+                    else:
+                        st = "HIGH"
+                    ref_txt = "Non-diabetic: <= 5.6, Pre-diabetic: 5.7-6.4, Diabetic: >= 6.5"
+                elif slug == "estimated_average_glucose":
+                    if val > 126.0:
+                        st = "HIGH"
+                    elif val < 70.0:
+                        st = "LOW"
+                    else:
+                        st = "NORMAL"
+                    ref_txt = "< 126 Normal"
                 report.parameters.append(ClinicalParameter(
                     category=meta["cat"],
                     param_name=meta["name"],
@@ -865,10 +909,159 @@ def process_image(file_path: str) -> dict:
         return {"error": str(e)}
 
 
+def process_pdf(pdf_path: str, output_dir: Optional[str] = None) -> dict:
+    if not os.path.exists(pdf_path):
+        return {"error": f"File not found: {pdf_path}"}
+
+    if not output_dir:
+        output_dir = os.path.dirname(os.path.abspath(pdf_path))
+    os.makedirs(output_dir, exist_ok=True)
+
+    pdftoppm_cmd = find_poppler_tool("pdftoppm")
+    pdftotext_cmd = find_poppler_tool("pdftotext")
+
+    base_name = os.path.splitext(os.path.basename(pdf_path))[0]
+    page_prefix = os.path.join(output_dir, f"{base_name}_p")
+
+    generated_pngs = []
+    if pdftoppm_cmd:
+        try:
+            subprocess.run(
+                [pdftoppm_cmd, "-png", "-r", "200", pdf_path, page_prefix],
+                check=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            for f in os.listdir(output_dir):
+                if f.startswith(f"{base_name}_p-") and f.endswith(".png"):
+                    m = re.search(r"-(\d+)\.png$", f)
+                    if m:
+                        page_num = int(m.group(1))
+                        generated_pngs.append((page_num, os.path.join(output_dir, f), f))
+            generated_pngs.sort(key=lambda x: x[0])
+        except Exception as e:
+            sys.stderr.write(f"pdftoppm failed: {e}\n")
+
+    total_pages = len(generated_pngs) if generated_pngs else 1
+
+    all_pages_data = []
+    combined_parameters = []
+    combined_unparsed = []
+    raw_texts = []
+
+    rep_raw_name = "Unknown"
+    rep_clean_name = "Unknown"
+    rep_age = None
+    rep_gender = None
+    rep_lab = None
+    rep_reg = None
+    rep_report_date = None
+    rep_collection_date = None
+
+    for p_idx in range(1, total_pages + 1):
+        page_png_path = None
+        page_filename = None
+        for p_num, full_p, fname in generated_pngs:
+            if p_num == p_idx:
+                page_png_path = full_p
+                page_filename = fname
+                break
+
+        page_text = ""
+        if pdftotext_cmd:
+            try:
+                res = subprocess.run(
+                    [pdftotext_cmd, "-f", str(p_idx), "-l", str(p_idx), "-layout", pdf_path, "-"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    check=True,
+                )
+                page_text = res.stdout
+            except Exception as e:
+                sys.stderr.write(f"pdftotext page {p_idx} failed: {e}\n")
+
+        # Fallback to OCR on rendered PNG if digital text is empty or too short (scanned PDF)
+        if len(page_text.strip()) < 30 and page_png_path and os.path.exists(page_png_path) and pytesseract:
+            try:
+                img = Image.open(page_png_path)
+                ocr_text = pytesseract.image_to_string(img)
+                if len(ocr_text.strip()) > len(page_text.strip()):
+                    page_text = ocr_text
+            except Exception as e:
+                sys.stderr.write(f"Tesseract OCR fallback failed: {e}\n")
+
+        raw_texts.append(page_text)
+        page_report = parse_clinical_text(page_text)
+
+        if rep_raw_name == "Unknown" and page_report.raw_patient_name != "Unknown":
+            rep_raw_name = page_report.raw_patient_name
+            rep_clean_name = page_report.clean_patient_name
+        if rep_age is None and page_report.age is not None:
+            rep_age = page_report.age
+        if rep_gender is None and page_report.gender is not None:
+            rep_gender = page_report.gender
+        if not rep_lab and page_report.lab_name:
+            rep_lab = page_report.lab_name
+        if not rep_reg and page_report.registration_no:
+            rep_reg = page_report.registration_no
+        if not rep_report_date and page_report.report_date:
+            rep_report_date = page_report.report_date
+        if not rep_collection_date and page_report.collection_date:
+            rep_collection_date = page_report.collection_date
+
+        page_params = []
+        for p in page_report.parameters:
+            p.source_page = p_idx
+            page_params.append(p.model_dump())
+            combined_parameters.append(p)
+
+        combined_unparsed.extend(page_report.unparsed_lines)
+
+        all_pages_data.append({
+            "page_number": p_idx,
+            "image_filename": page_filename or f"{base_name}_page{p_idx}.png",
+            "image_path": page_png_path,
+            "raw_text": page_text[:1000],
+            "parameters": page_params,
+            "unparsed_lines": page_report.unparsed_lines,
+            "extraction_quality": page_report.extraction_quality,
+        })
+
+    overall_quality = "COMPLETE" if len(combined_parameters) > 0 else "EMPTY"
+    if any(p.get("extraction_quality") == "PARTIAL" for p in all_pages_data) or len(combined_unparsed) > 1:
+        overall_quality = "PARTIAL"
+
+    return {
+        "is_pdf": True,
+        "raw_patient_name": rep_raw_name,
+        "clean_patient_name": rep_clean_name,
+        "age": rep_age,
+        "gender": rep_gender,
+        "lab_name": rep_lab,
+        "registration_no": rep_reg,
+        "report_date": rep_report_date,
+        "collection_date": rep_collection_date,
+        "raw_text": "\n--- PAGE BREAK ---\n".join(raw_texts)[:2000],
+        "parameters": [p.model_dump() for p in combined_parameters],
+        "unparsed_lines": combined_unparsed[:10],
+        "extraction_quality": overall_quality,
+        "pdf_pages": all_pages_data,
+    }
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print(json.dumps({"error": "No image path provided"}))
+        print(json.dumps({"error": "No file path provided"}))
         sys.exit(1)
-        
-    result = process_image(sys.argv[1])
+
+    input_file = sys.argv[1]
+    out_dir = sys.argv[2] if len(sys.argv) > 2 else None
+
+    if input_file.lower().endswith(".pdf"):
+        result = process_pdf(input_file, output_dir=out_dir)
+    else:
+        result = process_image(input_file)
+
     print(json.dumps(result, indent=2))
+

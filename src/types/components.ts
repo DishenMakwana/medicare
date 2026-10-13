@@ -45,6 +45,11 @@ export interface NavbarProps {
   members?: FamilyMember[];
 }
 
+export interface RefreshCacheButtonProps {
+  className?: string;
+  onSuccess?: () => void;
+}
+
 // ----------------------------------------------------
 // Members Feature Components
 // ----------------------------------------------------

@@ -8,6 +8,7 @@ const execFileAsync = promisify(execFile);
 
 export async function runPythonExtraction(
   imagePath: string,
+  outputDir?: string,
 ): Promise<ExtractedReportResult> {
   const rootDir = process.cwd();
   // Construct path dynamically so bundlers do not treat .venv as bundled asset
@@ -17,14 +18,15 @@ export async function runPythonExtraction(
   const scriptPath = path.join(rootDir, "scripts", "extract_report.py");
 
   try {
-    const { stdout, stderr } = await execFileAsync(
-      pythonPath,
-      [scriptPath, imagePath],
-      {
-        timeout: 30000,
-        maxBuffer: 10 * 1024 * 1024,
-      },
-    );
+    const args = [scriptPath, imagePath];
+    if (outputDir) {
+      args.push(outputDir);
+    }
+
+    const { stdout, stderr } = await execFileAsync(pythonPath, args, {
+      timeout: 45000,
+      maxBuffer: 15 * 1024 * 1024,
+    });
 
     if (stderr && stderr.trim().length > 0) {
       console.warn("Python extractor stderr warning:", stderr);

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Activity, FileText, Heart, Plus, Users } from "lucide-react";
 import { VitalsModal } from "@/features/vitals/components/VitalsModal";
+import { RefreshCacheButton } from "@/components/ui/RefreshCacheButton";
 import type { NavbarProps } from "@/types";
 
 export function Navbar({ members = [] }: NavbarProps) {
@@ -116,6 +117,9 @@ export function Navbar({ members = [] }: NavbarProps) {
                 <span className="hidden sm:inline">Upload Report</span>
                 <span className="sm:hidden">Upload</span>
               </Link>
+
+              {/* Refresh Caches Button */}
+              <RefreshCacheButton />
             </div>
           </div>
 

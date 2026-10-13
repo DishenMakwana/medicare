@@ -165,6 +165,18 @@ export const initialTestPresets: TestPreset[] = [
     source: "SYSTEM_DEFAULT",
   },
   {
+    id: "preset-meta-eag",
+    labName: null,
+    name: "Estimated Average Glucose (eAG)",
+    category: "Metabolic & Inflammatory",
+    unit: "mg/dL",
+    refMin: 70.0,
+    refMax: 126.0,
+    refText: "< 126 Normal",
+    clinicalMethod: "Calculated",
+    source: "SYSTEM_DEFAULT",
+  },
+  {
     id: "preset-meta-ca",
     labName: null,
     name: "Serum Calcium",

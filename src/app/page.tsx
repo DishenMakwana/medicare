@@ -19,6 +19,7 @@ import { db } from "@/lib/db";
 import { formatDate } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function DashboardPage() {
   const [members, reports, vitals] = await Promise.all([

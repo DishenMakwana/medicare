@@ -171,14 +171,44 @@ export function MemberModal({
                   onChange={(e) => setRelation(e.target.value)}
                   className="w-full appearance-none pl-3 pr-8 py-2 rounded-xl border border-slate-200 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white cursor-pointer"
                 >
-                  <option value="Self">Self</option>
-                  <option value="Mother">Mother</option>
-                  <option value="Father">Father</option>
-                  <option value="Spouse">Spouse</option>
-                  <option value="Child">Child / Son / Daughter</option>
-                  <option value="Grandparent">Grandparent</option>
-                  <option value="Sibling">Sibling</option>
-                  <option value="Other">Other</option>
+                  <optgroup label="Primary">
+                    <option value="Self">Self</option>
+                    <option value="Spouse">Spouse / Partner</option>
+                    <option value="Mother">Mother</option>
+                    <option value="Father">Father</option>
+                    <option value="Son">Son</option>
+                    <option value="Daughter">Daughter</option>
+                    <option value="Child">Child (General)</option>
+                  </optgroup>
+
+                  <optgroup label="Siblings">
+                    <option value="Brother">Brother</option>
+                    <option value="Sister">Sister</option>
+                    <option value="Sibling">Sibling (General)</option>
+                  </optgroup>
+
+                  <optgroup label="In-Laws">
+                    <option value="Mother-in-law">Mother-in-law</option>
+                    <option value="Father-in-law">Father-in-law</option>
+                    <option value="Brother-in-law">Brother-in-law</option>
+                    <option value="Sister-in-law">Sister-in-law</option>
+                    <option value="Son-in-law">Son-in-law</option>
+                    <option value="Daughter-in-law">Daughter-in-law</option>
+                  </optgroup>
+
+                  <optgroup label="Extended Family">
+                    <option value="Grandmother">Grandmother</option>
+                    <option value="Grandfather">Grandfather</option>
+                    <option value="Grandparent">Grandparent (General)</option>
+                    <option value="Grandson">Grandson</option>
+                    <option value="Granddaughter">Granddaughter</option>
+                    <option value="Uncle">Uncle</option>
+                    <option value="Aunt">Aunt</option>
+                    <option value="Nephew">Nephew</option>
+                    <option value="Niece">Niece</option>
+                    <option value="Cousin">Cousin</option>
+                    <option value="Other">Other</option>
+                  </optgroup>
                 </select>
                 <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               </div>

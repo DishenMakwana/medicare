@@ -37,9 +37,17 @@ export async function saveVerifiedReport(reportData: {
       : null,
   });
 
-  revalidatePath("/");
-  revalidatePath("/reports");
-  revalidatePath(`/members/${reportData.familyMemberId}`);
+  db.clearCache();
+
+  try {
+    revalidatePath("/", "layout");
+    revalidatePath("/");
+    revalidatePath("/reports");
+    revalidatePath("/members");
+    revalidatePath(`/members/${reportData.familyMemberId}`);
+  } catch {
+    // Gracefully continue outside Next.js request context
+  }
   return saved;
 }
 
@@ -48,9 +56,15 @@ export async function deleteReportImageAction(
   reportId: string | number,
 ) {
   const result = await db.deleteReportImage(imageId);
-  revalidatePath(`/reports/${reportId}`);
-  revalidatePath("/reports");
-  revalidatePath("/");
+  db.clearCache();
+  try {
+    revalidatePath("/", "layout");
+    revalidatePath(`/reports/${reportId}`);
+    revalidatePath("/reports");
+    revalidatePath("/");
+  } catch {
+    // Gracefully continue outside Next.js request context
+  }
   return result;
 }
 
@@ -59,10 +73,17 @@ export async function deleteReportAction(
   memberId?: string | number,
 ) {
   const result = await db.deleteReport(reportId);
-  revalidatePath("/reports");
-  revalidatePath("/");
-  if (memberId) {
-    revalidatePath(`/members/${memberId}`);
+  db.clearCache();
+  try {
+    revalidatePath("/", "layout");
+    revalidatePath("/reports");
+    revalidatePath("/members");
+    revalidatePath("/");
+    if (memberId) {
+      revalidatePath(`/members/${memberId}`);
+    }
+  } catch {
+    // Gracefully continue outside Next.js request context
   }
   return result;
 }
@@ -81,7 +102,9 @@ export async function saveTestPresetAction(presetData: {
   refText?: string | null;
   clinicalMethod?: string | null;
 }) {
-  return await db.upsertTestPreset(presetData);
+  const result = await db.upsertTestPreset(presetData);
+  db.clearCache();
+  return result;
 }
 
 export async function updateTestPresetByIdAction(payload: {
@@ -112,6 +135,7 @@ export async function updateTestPresetByIdAction(payload: {
     );
   }
 
+  db.clearCache();
   revalidatePath(`/reports/${payload.reportId}`);
   revalidatePath("/reports");
   revalidatePath("/");

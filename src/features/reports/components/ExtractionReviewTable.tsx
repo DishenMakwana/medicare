@@ -99,6 +99,7 @@ export function ExtractionReviewTable({
       setSelectedMemberId(created.id);
       setNewMemberCreatedBadge(`Created profile for "${created.name}"`);
       setTimeout(() => setNewMemberCreatedBadge(null), 5000);
+      router.refresh();
     }
     setIsMemberModalOpen(false);
   }

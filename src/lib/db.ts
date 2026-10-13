@@ -21,32 +21,64 @@ export const prisma =
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
 // ----------------------------------------------------
-// In-Memory Fast Cache with TTL & Dynamic Invalidation
+// File-Backed Cache Epoch for Multi-Process Synchronization
 // ----------------------------------------------------
+const CACHE_EPOCH_FILE = path.join(process.cwd(), ".cache-timestamp");
+
+function getGlobalCacheEpoch(): number {
+  try {
+    if (fs.existsSync(CACHE_EPOCH_FILE)) {
+      const content = fs.readFileSync(CACHE_EPOCH_FILE, "utf-8").trim();
+      return Number(content) || 0;
+    }
+  } catch {}
+  return 0;
+}
+
+function updateGlobalCacheEpoch(): void {
+  try {
+    fs.writeFileSync(CACHE_EPOCH_FILE, String(Date.now()), "utf-8");
+  } catch {}
+}
+
 interface CacheEntry<T> {
   data: T;
+  created: number;
   expiry: number;
 }
 
-const localCache = new Map<string, CacheEntry<unknown>>();
+const globalForCache = globalThis as unknown as {
+  localCache?: Map<string, CacheEntry<unknown>>;
+};
+
+const localCache =
+  globalForCache.localCache ?? new Map<string, CacheEntry<unknown>>();
+
+if (!globalForCache.localCache) {
+  globalForCache.localCache = localCache;
+}
 
 const memoryCache = {
   get<T>(key: string): T | null {
     const entry = localCache.get(key);
     if (!entry) return null;
-    if (Date.now() > entry.expiry) {
+    const epoch = getGlobalCacheEpoch();
+    if (entry.created < epoch || Date.now() > entry.expiry) {
       localCache.delete(key);
       return null;
     }
     return entry.data as T;
   },
-  set<T>(key: string, data: T, ttlMs: number = 60000): void {
+  set<T>(key: string, data: T, ttlMs: number = 3000): void {
+    const now = Date.now();
     localCache.set(key, {
       data,
-      expiry: Date.now() + ttlMs,
+      created: now,
+      expiry: now + ttlMs,
     });
   },
   invalidatePrefix(prefix: string): void {
+    updateGlobalCacheEpoch();
     for (const key of localCache.keys()) {
       if (key.startsWith(prefix)) {
         localCache.delete(key);
@@ -54,6 +86,7 @@ const memoryCache = {
     }
   },
   invalidateAll(): void {
+    updateGlobalCacheEpoch();
     localCache.clear();
   },
 };
@@ -121,7 +154,7 @@ export const db = {
         orderBy: { name: "asc" },
       });
       const result = dbMembers as unknown as FamilyMember[];
-      memoryCache.set(cacheKey, result, 60000);
+      memoryCache.set(cacheKey, result, 3000);
       return result;
     } catch (err) {
       console.warn("[Database] Failed to fetch members:", err);
@@ -168,7 +201,7 @@ export const db = {
       });
       const result = (member as unknown as FamilyMember) || null;
       if (result) {
-        memoryCache.set(cacheKey, result, 60000);
+        memoryCache.set(cacheKey, result, 3000);
       }
       return result;
     } catch (err) {
@@ -359,7 +392,7 @@ export const db = {
         orderBy: { reportDate: "desc" },
       });
       const result = reports as unknown as MedicalReport[];
-      memoryCache.set(cacheKey, result, 60000);
+      memoryCache.set(cacheKey, result, 3000);
       return result;
     } catch (err) {
       console.warn("[Database] Failed to fetch reports:", err);
@@ -466,13 +499,13 @@ export const db = {
           ...report,
           parameters: enhancedParameters,
         } as unknown as MedicalReport;
-        memoryCache.set(cacheKey, result, 60000);
+        memoryCache.set(cacheKey, result, 3000);
         return result;
       }
 
       const result = (report as unknown as MedicalReport) || null;
       if (result) {
-        memoryCache.set(cacheKey, result, 60000);
+        memoryCache.set(cacheKey, result, 3000);
       }
       return result;
     } catch (err) {
@@ -705,7 +738,7 @@ export const db = {
         orderBy: { recordDate: "desc" },
       });
       const result = vitals as unknown as DailyVital[];
-      memoryCache.set(cacheKey, result, 60000);
+      memoryCache.set(cacheKey, result, 3000);
       return result;
     } catch (err) {
       console.warn("[Database] Failed to fetch vitals:", err);
@@ -833,11 +866,11 @@ export const db = {
           if (aMatch !== bMatch) return bMatch - aMatch;
           return a.name.localeCompare(b.name);
         });
-        memoryCache.set(cacheKey, sorted, 300000);
+        memoryCache.set(cacheKey, sorted, 10000);
         return sorted;
       }
 
-      memoryCache.set(cacheKey, presets, 300000);
+      memoryCache.set(cacheKey, presets, 10000);
       return presets;
     } catch (err) {
       console.warn("[Database] Failed to fetch test presets:", err);

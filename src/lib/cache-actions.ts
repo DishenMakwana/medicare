@@ -10,6 +10,11 @@ export async function clearAllCachesAction() {
   try {
     db.clearCache();
     revalidatePath("/", "layout");
+    revalidatePath("/");
+    revalidatePath("/members");
+    revalidatePath("/reports");
+    revalidatePath("/vitals");
+    revalidatePath("/reports/upload");
     return { success: true, timestamp: Date.now() };
   } catch (err: any) {
     console.error("[Cache] Failed to clear server caches:", err);

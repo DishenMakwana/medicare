@@ -13,8 +13,34 @@ export function MembersListClient({ initialMembers }: MembersListClientProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    setMembers(initialMembers);
+    setMembers((prev) => {
+      const incomingIds = new Set(initialMembers.map((m) => m.id));
+      const optimisticNew = prev.filter((p) => !incomingIds.has(p.id));
+      return [...optimisticNew, ...initialMembers];
+    });
   }, [initialMembers]);
+
+  useEffect(() => {
+    function handleCacheRefreshed() {
+      router.refresh();
+      fetch(`/api/members?fresh=${Date.now()}`, { cache: "no-store" })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.members && Array.isArray(data.members)) {
+            setMembers(data.members);
+          }
+        })
+        .catch(() => {});
+    }
+
+    window.addEventListener("medicare:cache-refreshed", handleCacheRefreshed);
+    return () => {
+      window.removeEventListener(
+        "medicare:cache-refreshed",
+        handleCacheRefreshed,
+      );
+    };
+  }, [router]);
 
   const totalMembers = members.length;
   const totalReports = members.reduce(

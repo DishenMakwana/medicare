@@ -26,8 +26,15 @@ export async function logDailyVital(data: {
     notes: data.notes,
   });
 
-  revalidatePath("/");
-  revalidatePath("/vitals");
-  revalidatePath(`/members/${data.familyMemberId}`);
+  db.clearCache();
+
+  try {
+    revalidatePath("/", "layout");
+    revalidatePath("/");
+    revalidatePath("/vitals");
+    revalidatePath(`/members/${data.familyMemberId}`);
+  } catch {
+    // Gracefully continue outside Next.js request context
+  }
   return vital;
 }

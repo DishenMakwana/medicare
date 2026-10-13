@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
     let detectedRegNo = "";
     let detectedReportDate = "";
     let detectedCollectionDate = "";
+    let detectedDoctorRef = "";
 
     // Process each uploaded image photo or PDF document
     for (let i = 0; i < files.length; i++) {
@@ -68,6 +69,7 @@ export async function POST(req: NextRequest) {
       if (extraction.report_date) detectedReportDate = extraction.report_date;
       if (extraction.collection_date)
         detectedCollectionDate = extraction.collection_date;
+      if (extraction.doctor_ref) detectedDoctorRef = extraction.doctor_ref;
 
       if (
         extraction.is_pdf &&
@@ -243,6 +245,7 @@ export async function POST(req: NextRequest) {
         report_date:
           detectedReportDate || new Date().toISOString().split("T")[0],
         collection_date: detectedCollectionDate || null,
+        doctor_ref: detectedDoctorRef || null,
         images: uploadedImages,
         pagesSummary,
         hasIncompleteExtraction,

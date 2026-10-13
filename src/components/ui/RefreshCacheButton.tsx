@@ -19,14 +19,20 @@ export function RefreshCacheButton({
 
     setIsRefreshing(true);
     try {
-      const result = await refreshAppCaches(() => {
-        router.refresh();
-      });
+      const result = await refreshAppCaches();
 
       if (result.success) {
         setJustRefreshed(true);
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("medicare:cache-refreshed"));
+        }
         if (onSuccess) onSuccess();
-        setTimeout(() => setJustRefreshed(false), 2000);
+        router.refresh();
+        setTimeout(() => {
+          if (typeof window !== "undefined") {
+            window.location.reload();
+          }
+        }, 350);
       }
     } finally {
       setIsRefreshing(false);

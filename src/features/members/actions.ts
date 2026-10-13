@@ -48,9 +48,14 @@ export async function createFamilyMember(formData: {
     aliases: Array.from(aliasSet).join(", ") || undefined,
   });
 
+  db.clearCache();
+
   try {
+    revalidatePath("/", "layout");
     revalidatePath("/");
     revalidatePath("/members");
+    revalidatePath("/reports");
+    revalidatePath("/vitals");
   } catch {
     // Gracefully continue outside Next.js request context
   }

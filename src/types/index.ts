@@ -104,6 +104,7 @@ export interface ExtractedReportResult {
   registration_no?: string | null;
   report_date?: string | null;
   collection_date?: string | null;
+  doctor_ref?: string | null;
   raw_text?: string | null;
   pagesSummary?: PageExtractionSummary[];
   hasIncompleteExtraction?: boolean;

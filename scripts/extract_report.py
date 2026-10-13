@@ -59,10 +59,12 @@ class ExtractedReport(BaseModel):
     registration_no: Optional[str] = Field(None)
     report_date: Optional[str] = Field(None)
     collection_date: Optional[str] = Field(None)
+    doctor_ref: Optional[str] = Field(None)
     raw_text: Optional[str] = Field(None)
     parameters: List[ClinicalParameter] = Field(default_factory=list)
     unparsed_lines: List[str] = Field(default_factory=list, description="Lines that may contain clinical data not recognized automatically")
     extraction_quality: str = Field(default="COMPLETE", description="COMPLETE, PARTIAL, EMPTY")
+
 
 
 def clean_name(raw: str) -> str:
@@ -259,47 +261,58 @@ def parse_clinical_text(text: str, header_text: Optional[str] = None) -> Extract
         if lab_m:
             report.lab_name = lab_m.group(1).strip()
             
-    # 2. Parse Registration No / PID / VID
-    reg_m = re.search(r'PID\s*(?:No|Na|N0|\.)?\.?\s*[:\-]?\s*([0-9A-Za-z]+)', combined_text, re.IGNORECASE)
+    # 2. Parse Registration No / PID / VID / Lab Ref No
+    reg_m = re.search(r'PID\s*(?:No|Na|N0|\.)?\.?\s*[:\-\—\–\_\~\|\s]+\s*([0-9A-Za-z]+)', combined_text, re.IGNORECASE)
     if not reg_m:
-        reg_m = re.search(r'VID\s*(?:No|Na|N0|\.)?\.?\s*[:\-]?\s*([0-9A-Za-z]+)', combined_text, re.IGNORECASE)
+        reg_m = re.search(r'VID\s*(?:No|Na|N0|\.)?\.?\s*[:\-\—\–\_\~\|\s]+\s*([0-9A-Za-z]+)', combined_text, re.IGNORECASE)
     if not reg_m:
-        reg_m = re.search(r'Reg\.?\s*(?:No|Na|N0)?\.?\s*[:\-]?\s*([0-9]{5,}[0-9A-Za-z]*)', combined_text, re.IGNORECASE)
+        reg_m = re.search(r'(?:Lab\.?\s*Ref\.?\s*(?:No|Na|N0)?\.?)\s*[:\-\—\–\_\~\|\s]+\s*([0-9][0-9A-Za-z\-]*)', combined_text, re.IGNORECASE)
     if not reg_m:
-        reg_m = re.search(r'Reg\.?\s*(?:No|Na|N0)?\.?\s*[:\-]?\s*([0-9A-Za-z]+)', combined_text, re.IGNORECASE)
-    if reg_m and reg_m.group(1).lower() not in ("name", "g"):
+        reg_m = re.search(r'Reg(?:istration)?\.?\s*(?:No|Na|N0|Number)?\.?\s*[:\-\—\–\_\~\|\s]+\s*([0-9]{3,}[0-9A-Za-z\-]*)', combined_text, re.IGNORECASE)
+    if not reg_m:
+        reg_m = re.search(r'Reg\.?\s*(?:No|Na|N0)?\.?\s*[:\-]?\s*([0-9][0-9A-Za-z]+)', combined_text, re.IGNORECASE)
+    if reg_m and reg_m.group(1).lower() not in ("name", "g", "date", "time"):
         report.registration_no = reg_m.group(1).strip()
         
     # 3. Parse Patient Name
-    name_m = re.search(r'Name\s*[:\-\s]\s*([A-Za-z\s\.]+?)(?=\s+(?:Age|Sex|Gender|VID|PID|Reg|Date|Report|Dispatch|\n))', combined_text, re.IGNORECASE)
-    if name_m and len(name_m.group(1).strip()) > 3:
+    name_m = re.search(r'(?:Patient\s*Name|Name)\s*[:\-\—\–\_\~\|\s]+\s*([A-Za-z\s\.]+?)(?=\s+(?:Age|Sex|Gender|VID|PID|Lab|Ref|Reg|Date|Report|Dispatch|\n))', combined_text, re.IGNORECASE)
+    if name_m and len(name_m.group(1).strip()) > 2:
         raw_name = name_m.group(1).strip()
         report.raw_patient_name = raw_name
         report.clean_patient_name = clean_name(raw_name)
         
     # 4. Parse Age & Sex / Gender
-    age_m = re.search(r'(?:Age\s*(?:\/\s*Gender|\/\s*Sex)?|Age)\s*[:\-\s]\s*(\d+)', combined_text, re.IGNORECASE)
+    age_m = re.search(r'(?:Age\s*(?:\/\s*(?:Gender|Sex))?|Age)\s*[:\-\—\–\_\~\|\s]+\s*(\d+)', combined_text, re.IGNORECASE)
     if age_m:
         report.age = int(age_m.group(1))
-    sex_m = re.search(r'(?:Gender|Sex)\s*[:\-\s].*?\b(Female|Male|Other)\b', combined_text, re.IGNORECASE)
+    sex_m = re.search(r'(?:Gender|Sex)\s*[:\-\—\–\_\~\|\s].*?\b(Female|Male|Other)\b', combined_text, re.IGNORECASE)
     if not sex_m:
         sex_m = re.search(r'Sex\s*[:\-]?\s*(Female|Male|Other)', combined_text, re.IGNORECASE)
     if sex_m:
         report.gender = sex_m.group(1).capitalize()
+
+    # 4b. Parse Doctor / Referrer
+    doc_m = re.search(r'(?:Ref\.?\s*by\s*[:\-\—\–\_\~\|\s]+)?(?:Dr\.?|Doctor)\s*([A-Za-z\s\.]+?)(?=\s+(?:M\.?D|MBBS|Path|\n|$))', combined_text, re.IGNORECASE)
+    if doc_m and len(doc_m.group(1).strip()) > 2:
+        doc_candidate = doc_m.group(1).strip()
+        if not doc_candidate.lower().startswith("dr.") and not doc_candidate.lower().startswith("dr "):
+            report.doctor_ref = f"Dr. {doc_candidate}"
+        else:
+            report.doctor_ref = doc_candidate
         
     # 5. Parse Dates (Both Report Date and Collection Date)
     # Collection Date / Collected On
-    col_m = re.search(r'Collected\s*(?:On|Date|At)?\s*[:\-]?\s*([0-9]{1,2}[\/\-\s][A-Za-z0-9]{2,4}[\/\-\s][0-9]{2,4}(?:\s+[0-9]{1,4}(?:[:\.][0-9]{2})?(?:\s*[AaPp][Mm])?)?)', combined_text, re.IGNORECASE)
+    col_m = re.search(r'Collected\s*(?:On|Date|At)?\s*[:\-\—\–\_\~\|\s]+\s*([0-9]{1,2}[\/\-\s][A-Za-z0-9]{2,4}[\/\-\s][0-9]{2,4}(?:\s+[0-9]{1,4}(?:[:\.][0-9]{2})?(?:\s*[AaPp][Mm])?)?)', combined_text, re.IGNORECASE)
     if col_m:
         report.collection_date = normalize_date_string(col_m.group(1))
         
-    # Report Date / Reported On
-    rep_m = re.search(r'(?:Reported\s*(?:On|Date|At)?|Report\s*Date)\s*[:\-]?\s*([0-9]{1,2}[\/\-\s][A-Za-z0-9]{2,4}[\/\-\s][0-9]{2,4}(?:\s+[0-9]{1,4}(?:[:\.][0-9]{2})?(?:\s*[AaPp][Mm])?)?)', combined_text, re.IGNORECASE)
+    # Report Date / Reported On / Reg Date
+    rep_m = re.search(r'(?:Reported\s*(?:On|Date|At)?|Report\s*Date|Reg\.?\s*Date(?:\s*(?:&|and)\s*time)?)\s*[:\-\—\–\_\~\|\s]+\s*([0-9]{1,2}[\/\-\s][A-Za-z0-9]{2,4}[\/\-\s][0-9]{2,4}(?:\s+[0-9]{1,4}(?:[:\.][0-9]{2})?(?:\s*[AaPp][Mm])?)?)', combined_text, re.IGNORECASE)
     if rep_m:
         report.report_date = normalize_date_string(rep_m.group(1))
     else:
         # Fallback to Reg. Date if Report Date isn't found
-        reg_m = re.search(r'Reg\.?\s*Date\s*[:\-]?\s*([0-9]{1,2}[\/\-\s][A-Za-z0-9]{2,4}[\/\-\s][0-9]{2,4})', combined_text, re.IGNORECASE)
+        reg_m = re.search(r'Reg\.?\s*Date(?:\s*(?:&|and)\s*time)?\s*[:\-\—\–\_\~\|\s]+\s*([0-9]{1,2}[\/\-\s][A-Za-z0-9]{2,4}[\/\-\s][0-9]{2,4})', combined_text, re.IGNORECASE)
         if reg_m:
             report.report_date = normalize_date_string(reg_m.group(1))
 
@@ -314,7 +327,10 @@ def parse_clinical_text(text: str, header_text: Optional[str] = None) -> Extract
     if not report.report_date and report.collection_date:
         report.report_date = report.collection_date.split()[0]
     if not report.collection_date and report.report_date:
-        report.collection_date = report.report_date + " 11:05"
+        if " " in report.report_date:
+            report.collection_date = report.report_date
+        else:
+            report.collection_date = report.report_date + " 11:05"
 
     # 6. Extract Parameters using Pattern Catalog
     lines = text.split('\n')
@@ -414,7 +430,7 @@ def parse_clinical_text(text: str, header_text: Optional[str] = None) -> Extract
 
         # Vitamins
         "vitamin_d": r'(?:25\s*OH\s*Vitamin\s*D|Vitamin\s*D)[^\d\n]*?(\d+[\.,]?\d*)',
-        "vitamin_b12": r'(?:(?:B[1iIl|!0]2|8[1iIl|!0]2)\s*LEVEL|\bB[1iIl|!0]2\b|Vitamin\s*B[1iIl|!0]2)[^\d\n]*?(?:Serum[^\d\n]*)?(\d{2,4}(?:\.\d+)?)',
+        "vitamin_b12": r'(?:(?:B[1iIl|!0]\s*[-–—]?\s*2|8[1iIl|!0]2)\s*LEVEL|\bB[1iIl|!0]\s*[-–—]?\s*2\b|(?:S\.?\s*)?Vitamine?\s*B\s*[-–—]?\s*12|Serum\s*Vitamine?\s*B\s*[-–—]?\s*12)[^\d\n]*?(?:Serum[^\d\n]*)?(\d{2,4}(?:\.\d+)?)',
 
         # Urine Examination (Requires explicit urine context or exact pH to prevent matching telephone 'Ph.')
         "urine_ph": r'(?:Urine\s*pH|Reaction\s*[\/\(]?\s*pH|pH\s*\(Urine\)|\bpH\b)\s*[:\-]?\s*(\d+\.?\d*)',
@@ -547,8 +563,25 @@ def parse_clinical_text(text: str, header_text: Optional[str] = None) -> Extract
                         continue
 
                 meta = PARAM_CATALOG[slug]
-                st = evaluate_status(val, meta.get("min"), meta.get("max"))
-                ref_txt = f"{meta.get('min')} - {meta.get('max')}"
+                ref_min = meta.get("min")
+                ref_max = meta.get("max")
+                ref_txt = f"{ref_min} - {ref_max}"
+
+                # Extract line context after the matched parameter value for printed biological reference intervals
+                line_rest = text[m.end():].split('\n')[0]
+                range_m = re.search(r'(\d+(?:\.\d+)?)\s*[-–—]\s*(\d+(?:\.\d+)?)', line_rest)
+                if range_m:
+                    try:
+                        r_min = float(range_m.group(1))
+                        r_max = float(range_m.group(2))
+                        if r_min < r_max:
+                            ref_min = r_min
+                            ref_max = r_max
+                            ref_txt = f"{range_m.group(1)} - {range_m.group(2)}"
+                    except (ValueError, TypeError):
+                        pass
+
+                st = evaluate_status(val, ref_min, ref_max)
                 if slug == "hba1c":
                     if val <= 5.6:
                         st = "NORMAL"
@@ -571,8 +604,8 @@ def parse_clinical_text(text: str, header_text: Optional[str] = None) -> Extract
                     param_slug=slug,
                     value_number=val,
                     unit=meta.get("unit"),
-                    ref_min=meta.get("min"),
-                    ref_max=meta.get("max"),
+                    ref_min=ref_min,
+                    ref_max=ref_max,
                     ref_text=ref_txt,
                     status=st,
                     clinical_method=meta.get("method")
@@ -797,7 +830,7 @@ def parse_clinical_text(text: str, header_text: Optional[str] = None) -> Extract
         "t4": ["t4", "thyroxine", "14 (thyroxin", "thyroxin"],
         "tsh": ["tsh", "thyroid stimulating"],
         "vitamin_d": ["vitamin d", "25 oh vitamin"],
-        "vitamin_b12": ["vitamin b12", "b12 level", "b12"],
+        "vitamin_b12": ["vitamin b12", "vitamine b12", "vitamine b - 12", "vitamin b - 12", "s. vitamine", "serum vitamin b12", "serum vitamin", "b12 level", "b12"],
         "urine_ph": ["ph", "urine ph"],
         "urine_sp_gravity": ["sp. gravity", "specific gravity", "gravity"],
         "urine_protein": ["protein (by ssa)", "protein"],

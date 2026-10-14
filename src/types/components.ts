@@ -1,5 +1,10 @@
-import { LucideIcon } from "lucide-react";
-import { FamilyMember, MedicalReport, DailyVital, TestPreset } from "./index";
+import type { LucideIcon } from "lucide-react";
+import type {
+  FamilyMember,
+  MedicalReport,
+  DailyVital,
+  TestPreset,
+} from "./models";
 
 // ----------------------------------------------------
 // UI Primitives & Layout

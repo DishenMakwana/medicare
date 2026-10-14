@@ -4,8 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
-    "prebuild": "prettier --write \"src/**/*.{ts,tsx}\" && eslint",
-    "build": "prettier --write \"src/**/*.{ts,tsx}\" && eslint && next build --webpack",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
     "format": "prettier --write \"src/**/*.{ts,tsx}\"",

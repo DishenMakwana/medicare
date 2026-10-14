@@ -90,6 +90,9 @@ export interface PageExtractionSummary {
   paramCount: number;
   status: "SUCCESS" | "WARNING" | "EMPTY";
   extractionQuality?: "COMPLETE" | "PARTIAL" | "EMPTY" | string;
+  testPresetStatus?: "COMPLETE" | "PARTIAL" | "EMPTY";
+  nonPresetStatus?: "CLEAN" | "NARRATIVE_NOTES" | "UNPARSED_LINES" | "NONE";
+  nonPresetLines?: string[];
   extractedParams?: string[];
   unparsedLines?: string[];
   errorReason?: string;
@@ -109,7 +112,10 @@ export interface ExtractedReportResult {
   pagesSummary?: PageExtractionSummary[];
   hasIncompleteExtraction?: boolean;
   unparsed_lines?: string[];
+  non_preset_lines?: string[];
   extraction_quality?: string;
+  test_preset_quality?: "COMPLETE" | "PARTIAL" | "EMPTY";
+  non_preset_quality?: "CLEAN" | "NARRATIVE_NOTES" | "UNPARSED_LINES" | "NONE";
   is_pdf?: boolean;
   pdf_pages?: Array<{
     page_number: number;
@@ -118,7 +124,11 @@ export interface ExtractedReportResult {
     raw_text?: string;
     parameters: any[];
     unparsed_lines?: string[];
+    non_preset_lines?: string[];
     extraction_quality?: string;
+    test_preset_quality?: "COMPLETE" | "PARTIAL" | "EMPTY";
+    non_preset_quality?:
+      "CLEAN" | "NARRATIVE_NOTES" | "UNPARSED_LINES" | "NONE";
   }>;
   parameters: Array<{
     category: string;

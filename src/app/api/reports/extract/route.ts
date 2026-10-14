@@ -102,8 +102,8 @@ export async function POST(req: NextRequest) {
               "Some parameters on this page have missing or unverified values.";
           }
 
-          const pageQuality =
-            p.extraction_quality ||
+          const testPresetStatus: "COMPLETE" | "PARTIAL" | "EMPTY" =
+            p.test_preset_quality ||
             (paramCount === 0
               ? "EMPTY"
               : (p.unparsed_lines && p.unparsed_lines.length > 0) ||
@@ -111,10 +111,24 @@ export async function POST(req: NextRequest) {
                 ? "PARTIAL"
                 : "COMPLETE");
 
+          const nonPresetStatus:
+            "CLEAN" | "NARRATIVE_NOTES" | "UNPARSED_LINES" | "NONE" =
+            p.non_preset_quality ||
+            (p.non_preset_lines && p.non_preset_lines.length > 0
+              ? "NARRATIVE_NOTES"
+              : "CLEAN");
+
+          const resolvedPageStatus: "SUCCESS" | "WARNING" | "EMPTY" =
+            testPresetStatus === "COMPLETE"
+              ? "SUCCESS"
+              : testPresetStatus === "EMPTY"
+                ? "EMPTY"
+                : "WARNING";
+
           uploadedImages.push({
             imageUrl: pageImgUrl,
             pageNumber: pageNum,
-            extractionQuality: pageQuality,
+            extractionQuality: testPresetStatus,
           });
 
           pagesSummary.push({
@@ -122,8 +136,11 @@ export async function POST(req: NextRequest) {
             imageUrl: pageImgUrl,
             fileName: `${file.name} (Page ${p.page_number})`,
             paramCount,
-            status: pageStatus,
-            extractionQuality: pageQuality,
+            status: resolvedPageStatus,
+            extractionQuality: testPresetStatus,
+            testPresetStatus,
+            nonPresetStatus,
+            nonPresetLines: p.non_preset_lines || [],
             extractedParams: pageParams.map((param: any) => param.param_name),
             unparsedLines: p.unparsed_lines || [],
             errorReason: errorReason || undefined,
@@ -160,8 +177,8 @@ export async function POST(req: NextRequest) {
             "Some parameters on this page have missing or unverified values.";
         }
 
-        const extractionQuality =
-          extraction.extraction_quality ||
+        const testPresetStatus: "COMPLETE" | "PARTIAL" | "EMPTY" =
+          extraction.test_preset_quality ||
           (paramCount === 0
             ? "EMPTY"
             : (extraction.unparsed_lines &&
@@ -170,10 +187,24 @@ export async function POST(req: NextRequest) {
               ? "PARTIAL"
               : "COMPLETE");
 
+        const nonPresetStatus:
+          "CLEAN" | "NARRATIVE_NOTES" | "UNPARSED_LINES" | "NONE" =
+          extraction.non_preset_quality ||
+          (extraction.non_preset_lines && extraction.non_preset_lines.length > 0
+            ? "NARRATIVE_NOTES"
+            : "CLEAN");
+
+        const resolvedPageStatus: "SUCCESS" | "WARNING" | "EMPTY" =
+          testPresetStatus === "COMPLETE"
+            ? "SUCCESS"
+            : testPresetStatus === "EMPTY"
+              ? "EMPTY"
+              : "WARNING";
+
         uploadedImages.push({
           imageUrl,
           pageNumber: pageNum,
-          extractionQuality,
+          extractionQuality: testPresetStatus,
         });
 
         pagesSummary.push({
@@ -181,8 +212,11 @@ export async function POST(req: NextRequest) {
           imageUrl,
           fileName: file.name,
           paramCount,
-          status: pageStatus,
-          extractionQuality,
+          status: resolvedPageStatus,
+          extractionQuality: testPresetStatus,
+          testPresetStatus,
+          nonPresetStatus,
+          nonPresetLines: extraction.non_preset_lines || [],
           extractedParams: pageParams.map((p) => p.param_name),
           unparsedLines: extraction.unparsed_lines || [],
           errorReason: errorReason || undefined,

@@ -143,12 +143,21 @@ export function ExtractionReviewTable({
     index: number;
   } | null>(null);
 
-  // Per-page extraction analytics
+  // Per-page extraction analytics - only consider pages with genuinely incomplete test presets
   const pagesSummary = extractedData.pagesSummary || [];
-  const problemPages = pagesSummary.filter(
-    (p: any) =>
-      p.status === "EMPTY" || p.status === "WARNING" || p.paramCount === 0,
-  );
+  const problemPages = pagesSummary.filter((p: any) => {
+    if (p.testPresetStatus) {
+      return p.testPresetStatus !== "COMPLETE";
+    }
+    const quality = (p.extractionQuality || "").toUpperCase();
+    if (quality === "COMPLETE") return false;
+    return (
+      p.status === "EMPTY" ||
+      p.status === "WARNING" ||
+      p.paramCount === 0 ||
+      quality === "PARTIAL"
+    );
+  });
   const incompleteParams = parameters.filter(
     (p) =>
       p.is_incomplete ||
@@ -209,6 +218,10 @@ export function ExtractionReviewTable({
     ) {
       setActiveCategory(updatedParam.category);
     }
+  }
+
+  function handleDeleteParameter(index: number) {
+    setParameters((prev) => prev.filter((_, idx) => idx !== index));
   }
 
   async function handleSave() {
@@ -619,15 +632,25 @@ export function ExtractionReviewTable({
                     </div>
 
                     {/* Top status indicator badge */}
-                    <div className="absolute top-2 left-2 z-10 pointer-events-none">
+                    <div className="absolute top-2 left-2 z-10 pointer-events-none flex flex-col gap-1 items-start">
                       {isPageEmpty ? (
                         <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg bg-amber-500 text-white shadow-sm flex items-center gap-1">
                           <AlertTriangle className="w-3 h-3 text-white" /> 0
                           tests
                         </span>
                       ) : (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-lg bg-emerald-600/90 text-white shadow-sm flex items-center gap-1 backdrop-blur-xs">
-                          <CheckCircle2 className="w-3 h-3 text-white" />{" "}
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-lg text-white shadow-sm flex items-center gap-1 backdrop-blur-xs ${
+                            quality === "COMPLETE"
+                              ? "bg-emerald-600/90"
+                              : "bg-amber-600/90"
+                          }`}
+                        >
+                          {quality === "COMPLETE" ? (
+                            <CheckCircle2 className="w-3 h-3 text-white" />
+                          ) : (
+                            <AlertTriangle className="w-3 h-3 text-white" />
+                          )}
                           {pageParamCount} tests
                         </span>
                       )}
@@ -646,29 +669,57 @@ export function ExtractionReviewTable({
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
 
-                    {/* Bottom overlay bar with page number and extraction quality badge */}
-                    <div className="absolute bottom-2 left-2 right-2 z-20 flex items-center justify-between gap-1.5 pointer-events-none">
-                      <div className="bg-slate-900/85 text-white text-[10px] font-bold py-1 px-2 rounded-lg text-center backdrop-blur-sm">
+                    {/* Bottom overlay bar with page number, non-preset status badge, and test preset status badge */}
+                    <div className="absolute bottom-2 left-2 right-2 z-20 flex flex-wrap items-center justify-between gap-1 pointer-events-none">
+                      <div className="bg-slate-900/85 text-white text-[10px] font-bold py-1 px-1.5 rounded-lg text-center backdrop-blur-sm">
                         Pg {pageNum}
                       </div>
 
-                      <div
-                        className={`text-[9.5px] font-black uppercase tracking-wider py-1 px-2 rounded-lg flex items-center gap-1 shadow-md backdrop-blur-sm ${
-                          quality === "COMPLETE"
-                            ? "bg-emerald-600/95 text-white border border-emerald-400/30"
-                            : quality === "EMPTY"
-                              ? "bg-rose-600/95 text-white border border-rose-400/30"
-                              : "bg-amber-500/95 text-white border border-amber-300/40"
-                        }`}
-                      >
-                        {quality === "COMPLETE" ? (
-                          <CheckCircle2 className="w-3 h-3 text-white" />
-                        ) : quality === "EMPTY" ? (
-                          <AlertCircle className="w-3 h-3 text-white" />
-                        ) : (
-                          <AlertTriangle className="w-3 h-3 text-white" />
-                        )}
-                        <span>{quality}</span>
+                      <div className="flex items-center gap-1">
+                        {/* Separate Non-Preset Status Badge */}
+                        {pageSummary?.nonPresetStatus &&
+                          pageSummary.nonPresetStatus !== "NONE" && (
+                            <div
+                              className={`text-[8.5px] font-bold py-0.5 px-1.5 rounded-md flex items-center gap-1 shadow-xs backdrop-blur-sm ${
+                                pageSummary.nonPresetStatus === "CLEAN"
+                                  ? "bg-slate-800/85 text-slate-200 border border-slate-700/50"
+                                  : pageSummary.nonPresetStatus ===
+                                      "NARRATIVE_NOTES"
+                                    ? "bg-purple-800/90 text-purple-200 border border-purple-600/50"
+                                    : "bg-sky-800/90 text-sky-200 border border-sky-600/50"
+                              }`}
+                              title={`Non-Preset Status: ${pageSummary.nonPresetStatus}`}
+                            >
+                              <span>
+                                {pageSummary.nonPresetStatus === "CLEAN"
+                                  ? "Meta: Clean"
+                                  : pageSummary.nonPresetStatus ===
+                                      "NARRATIVE_NOTES"
+                                    ? "Notes: Narrative"
+                                    : "Non-Test: Unparsed"}
+                              </span>
+                            </div>
+                          )}
+
+                        {/* Test Preset Extraction Quality Badge */}
+                        <div
+                          className={`text-[9.5px] font-black uppercase tracking-wider py-1 px-1.5 rounded-lg flex items-center gap-1 shadow-md backdrop-blur-sm ${
+                            quality === "COMPLETE"
+                              ? "bg-emerald-600/95 text-white border border-emerald-400/30"
+                              : quality === "EMPTY"
+                                ? "bg-rose-600/95 text-white border border-rose-400/30"
+                                : "bg-amber-500/95 text-white border border-amber-300/40"
+                          }`}
+                        >
+                          {quality === "COMPLETE" ? (
+                            <CheckCircle2 className="w-3 h-3 text-white" />
+                          ) : quality === "EMPTY" ? (
+                            <AlertCircle className="w-3 h-3 text-white" />
+                          ) : (
+                            <AlertTriangle className="w-3 h-3 text-white" />
+                          )}
+                          <span>{quality}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -962,14 +1013,20 @@ export function ExtractionReviewTable({
         <PageInspectModal
           isOpen={true}
           onClose={() => setInspectPageIndex(null)}
-          images={images.map((img, idx) => ({
-            id: img.id,
-            pageNumber: img.pageNumber || idx + 1,
-            imageUrl: img.imageUrl,
-            unparsedLines: pagesSummary.find(
-              (ps: any) => ps.pageNumber === (img.pageNumber || idx + 1),
-            )?.unparsedLines,
-          }))}
+          images={images.map((img, idx) => {
+            const pageNum = img.pageNumber || idx + 1;
+            const ps = pagesSummary.find((p: any) => p.pageNumber === pageNum);
+            return {
+              id: img.id,
+              pageNumber: pageNum,
+              imageUrl: img.imageUrl,
+              unparsedLines: ps?.unparsedLines,
+              nonPresetLines: ps?.nonPresetLines,
+              extractionQuality: ps?.testPresetStatus || ps?.extractionQuality,
+              testPresetStatus: ps?.testPresetStatus,
+              nonPresetStatus: ps?.nonPresetStatus,
+            };
+          })}
           initialPageIndex={inspectPageIndex ?? 0}
           initialTab={inspectModalTab}
           parameters={parameters}
@@ -977,6 +1034,7 @@ export function ExtractionReviewTable({
           labName={labName}
           onAddParameter={handleAddParameterManually}
           onUpdateParameter={handleUpdateParameter}
+          onDeleteParameter={handleDeleteParameter}
         />
       )}
     </div>

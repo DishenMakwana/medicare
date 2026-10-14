@@ -21,7 +21,9 @@ import {
   ListFilter,
   ChevronDown,
   Pencil,
+  Trash2,
 } from "lucide-react";
+import { DeleteConfirmModal } from "@/components/ui/DeleteConfirmModal";
 import { getTestPresetsAction, saveTestPresetAction } from "../actions";
 import type { TestPreset, PageInspectModalProps } from "@/types";
 
@@ -36,11 +38,16 @@ export function PageInspectModal({
   labName,
   onAddParameter,
   onUpdateParameter,
+  onDeleteParameter,
 }: PageInspectModalProps) {
   const [currentIndex, setCurrentIndex] = useState(initialPageIndex);
   const [activeTab, setActiveTab] = useState<"ADD_TEST" | "VIEW_TESTS">(
     initialTab,
   );
+  const [paramToDelete, setParamToDelete] = useState<{
+    param: any;
+    originalIndex: number;
+  } | null>(null);
 
   // Zoom / Pan / Rotate states
   const [zoom, setZoom] = useState(1);
@@ -461,6 +468,38 @@ export function PageInspectModal({
                 <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-800 text-slate-300 border border-slate-700">
                   {pageParams.length} tests on this page
                 </span>
+                {currentImg.testPresetStatus && (
+                  <span
+                    className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                      currentImg.testPresetStatus === "COMPLETE"
+                        ? "bg-emerald-950/80 text-emerald-300 border-emerald-600/60"
+                        : currentImg.testPresetStatus === "EMPTY"
+                          ? "bg-rose-950/80 text-rose-300 border-rose-600/60"
+                          : "bg-amber-950/80 text-amber-300 border-amber-600/60"
+                    }`}
+                  >
+                    Tests: {currentImg.testPresetStatus}
+                  </span>
+                )}
+                {currentImg.nonPresetStatus &&
+                  currentImg.nonPresetStatus !== "NONE" && (
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border ${
+                        currentImg.nonPresetStatus === "CLEAN"
+                          ? "bg-slate-800 text-slate-300 border-slate-700"
+                          : currentImg.nonPresetStatus === "NARRATIVE_NOTES"
+                            ? "bg-purple-950/80 text-purple-300 border-purple-600/60"
+                            : "bg-sky-950/80 text-sky-300 border-sky-600/60"
+                      }`}
+                    >
+                      Non-Test:{" "}
+                      {currentImg.nonPresetStatus === "CLEAN"
+                        ? "Clean"
+                        : currentImg.nonPresetStatus === "NARRATIVE_NOTES"
+                          ? "Narrative Notes"
+                          : "Unparsed Lines"}
+                    </span>
+                  )}
               </div>
               <p className="text-xs text-slate-400">
                 Inspect the scanned laboratory image on the left and enter or
@@ -1166,6 +1205,7 @@ export function PageInspectModal({
                               </div>
 
                               <div className="flex items-center gap-1.5 shrink-0">
+                                {/* 1. Edit button (First) */}
                                 <button
                                   type="button"
                                   onClick={() =>
@@ -1178,6 +1218,20 @@ export function PageInspectModal({
                                   <span>Edit</span>
                                 </button>
 
+                                {/* 2. Delete button (Second) */}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setParamToDelete({ param, originalIndex })
+                                  }
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-300 text-[11px] font-extrabold transition-all shadow-2xs active:scale-95 cursor-pointer"
+                                  title={`Delete "${name}" from this page`}
+                                >
+                                  <Trash2 className="w-3 h-3 text-rose-600" />
+                                  <span>Delete</span>
+                                </button>
+
+                                {/* 3. Status badge (Third) */}
                                 <span
                                   className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0 ${
                                     isHigh
@@ -1262,6 +1316,32 @@ export function PageInspectModal({
           </div>
         </div>
       </div>
+
+      {/* Delete Confirmation Modal for Wrongly Extracted Test Preset */}
+      <DeleteConfirmModal
+        isOpen={paramToDelete !== null}
+        onClose={() => setParamToDelete(null)}
+        onConfirm={() => {
+          if (paramToDelete) {
+            const deletedName =
+              paramToDelete.param.paramName ||
+              paramToDelete.param.param_name ||
+              "Biomarker";
+            if (editingIndex === paramToDelete.originalIndex) {
+              handleStartAddNew();
+            }
+            onDeleteParameter?.(paramToDelete.originalIndex);
+            setJustAddedSuccess(`Removed "${deletedName}"`);
+            setTimeout(() => setJustAddedSuccess(null), 3000);
+            setParamToDelete(null);
+          }
+        }}
+        title={`Delete "${paramToDelete?.param.paramName || paramToDelete?.param.param_name || "Biomarker"}"?`}
+        message={`Are you sure you want to delete this extracted test from Page ${currentPageNum}? It will be removed from your review table.`}
+        confirmLabel="Yes, Delete Test"
+        cancelLabel="Cancel"
+        itemBadge={`Page ${currentPageNum} • ${paramToDelete?.param.category || "Biomarker"}`}
+      />
     </div>
   );
 }

@@ -63,7 +63,10 @@ class ExtractedReport(BaseModel):
     raw_text: Optional[str] = Field(None)
     parameters: List[ClinicalParameter] = Field(default_factory=list)
     unparsed_lines: List[str] = Field(default_factory=list, description="Lines that may contain clinical data not recognized automatically")
+    non_preset_lines: List[str] = Field(default_factory=list, description="Non-test preset lines such as narrative notes, disclaimers, or metadata")
     extraction_quality: str = Field(default="COMPLETE", description="COMPLETE, PARTIAL, EMPTY")
+    test_preset_quality: str = Field(default="COMPLETE", description="COMPLETE, PARTIAL, EMPTY")
+    non_preset_quality: str = Field(default="CLEAN", description="CLEAN, NARRATIVE_NOTES, UNPARSED_LINES, NONE")
 
 
 
@@ -128,6 +131,7 @@ PARAM_CATALOG = {
     # Metabolic & Inflammatory
     "esr": {"name": "ESR", "cat": "Metabolic & Inflammatory", "unit": "mm/hr", "min": 0.0, "max": 12.0, "method": "Capillary photometer"},
     "fasting_glucose": {"name": "Fasting Plasma Glucose", "cat": "Metabolic & Inflammatory", "unit": "mg/dL", "min": 70.0, "max": 99.0, "method": "Hexokinase"},
+    "pp_glucose": {"name": "Post Prandial Blood Glucose", "cat": "Metabolic & Inflammatory", "unit": "mg/dL", "min": 70.0, "max": 140.0, "method": "GOD/POD Enzymatic"},
     "hba1c": {"name": "HbA1c (Glycated Hemoglobin)", "cat": "Metabolic & Inflammatory", "unit": "%", "min": 4.0, "max": 5.6, "method": "HPLC"},
     "estimated_average_glucose": {"name": "Estimated Average Glucose (eAG)", "cat": "Metabolic & Inflammatory", "unit": "mg/dL", "min": 70.0, "max": 126.0, "method": "Calculated"},
     "ra_factor": {"name": "RA Factor", "cat": "Metabolic & Inflammatory", "unit": "IU/mL", "min": 0.0, "max": 14.0, "method": "Immunoturbidimetric"},
@@ -173,6 +177,7 @@ PARAM_CATALOG = {
     "vitamin_b12": {"name": "Vitamin B12 Level, Serum", "cat": "Vitamins & Micronutrients", "unit": "pg/mL", "min": 211.0, "max": 911.0, "method": "Chemiluminescence"},
 
     # Urine Examination
+    "urine_volume": {"name": "Volume (Urine)", "cat": "Urine Routine Examination", "unit": "ml", "min": None, "max": None, "method": "Physical Examination"},
     "urine_colour": {"name": "Colour", "cat": "Urine Routine Examination", "unit": None, "min": None, "max": None, "method": "Physical Examination"},
     "urine_odour": {"name": "Odour", "cat": "Urine Routine Examination", "unit": None, "min": None, "max": None, "method": "Physical Examination"},
     "urine_clarity": {"name": "Clarity", "cat": "Urine Routine Examination", "unit": None, "min": None, "max": None, "method": "Physical Examination"},
@@ -373,10 +378,10 @@ def parse_clinical_text(text: str, header_text: Optional[str] = None) -> Extract
     # Match each parameter from catalog
     param_patterns = {
         "hemoglobin": r'(?:Hemoglobin|Hb)\b.*?(\d+\.?\d*)',
-        "hematocrit": r'(?:Hematocrit|Hematrocrit|Hematrocrt|Hematroci|PCV)\b.*?(\d+\.?\d*)',
+        "hematocrit": r'(?:Hematocrit|Hematrocrit|Hematrocrt|Hematroci|PCV|HCT)\b.*?(\d+\.?\d*)',
         "rbc_count": r'(?:RBC\s*Count|R&C\s*Count)\b[^\d\n]*?(\d+\.\d{1,2})',
         "wbc_count": r'(?:WBC\s*Count|WC\s*Count)\b[^\d\n\$]*?([\$0-9]+)',
-        "platelet_count": r'Platelet\s*Count.*?(\d+)',
+        "platelet_count": r'Platelets?\s*Count.*?(\d+)',
         "mcv": r'MCV\b.*?(\d+\.?\d*)',
         "mch": r'\bMI?CH\b[^\d\n]*?(\d+\.?\d*)',
         "mchc": r'MCHC\b.*?(\d+\.?\d*)',
@@ -388,7 +393,8 @@ def parse_clinical_text(text: str, header_text: Optional[str] = None) -> Extract
         "basophils": r'Basophils?\b[^\d\n]*?(\d+)',
         
         "esr": r'ESR[^\d\n]*?(\d+)\s*(?:mm\/hr|mm)?',
-        "fasting_glucose": r'(?<!AVERAGE\s)(?<!AVERAGE\s\()(?:FASTING\s*(?:PLASMA\s*)?GLUCOSE|\bFBS\b|\bFASTING\s+BLOOD\s+SUGAR\b).*?(\d+)',
+        "fasting_glucose": r'(?<!AVERAGE\s)(?<!AVERAGE\s\()(?:FASTING\s*(?:PLASMA\s*|BLOOD\s*)?(?:GLUCOSE|SUGAR)|\bFBS\b)[^\d\n]*?(\d+)',
+        "pp_glucose": r'(?:POST\s*PRANDIAL(?:\s*2\s*HRS)?(?:\s*BLOOD)?\s*GLUCOSE|\bPPBS\b|\bPP\s*GLUCOSE\b)[^\d\n]*?(\d+)',
         "hba1c": r'(?:HbA1c|HbA1C|Glycated\s*Ha?emoglobin)[\s\S]{0,120}?\b(\d{1,2}\.\d)\b',
         "estimated_average_glucose": r'(?:Estimated\s*Average\s*Glucose|\beAG\b)[^\d\n]*?(\d+)',
         "ra_factor": r'RA\s*FACTOR[^\d\n]*?(\d+[\.,]?\d*)',
@@ -424,8 +430,8 @@ def parse_clinical_text(text: str, header_text: Optional[str] = None) -> Extract
         "bun": r'(?:UREA\s+NITROGEN|\bBUN\b)[^\d\n]*?(\d+[\.,]?\d*)',
 
         # Thyroid Function
-        "t3": r'(?:[1IT]?3\s*[\(\[\{]?\s*triiodothyronine|\bT3\b)[^\d\n]*?(\d+[\.,]?\d*)',
-        "t4": r'(?:[1IT]?4\s*[\(\[\{]?\s*thyroxine|\bT4\b)[^\d\n]*?(\d+[\.,]?\d*)',
+        "t3": r'(?<!FREE\s)(?<!FT)(?<!\bfree\s)(?<!\()(?:[1IT]?3\s*[\(\[\{]?\s*triiodothyronine|(?<!\()\bT3\b(?!\)))(?![^\n]*?FT4)(?!\s*and\s*T4)[^\d\n]*?(?<![A-Za-z])(\d+[\.,]?\d*)',
+        "t4": r'(?:[1IT]?4\s*[\(\[\{]?\s*thyroxine|\bT4\b)[^\d\n]*?(?<![A-Za-z])(\d+[\.,]?\d*)',
         "tsh": r'(?:TSH|Thyroid\s*Stimulating)[^\d\n]*?(\d+[\.,]?\d*)',
 
         # Vitamins
@@ -433,6 +439,7 @@ def parse_clinical_text(text: str, header_text: Optional[str] = None) -> Extract
         "vitamin_b12": r'(?:(?:B[1iIl|!0]\s*[-–—]?\s*2|8[1iIl|!0]2)\s*LEVEL|\bB[1iIl|!0]\s*[-–—]?\s*2\b|(?:S\.?\s*)?Vitamine?\s*B\s*[-–—]?\s*12|Serum\s*Vitamine?\s*B\s*[-–—]?\s*12)[^\d\n]*?(?:Serum[^\d\n]*)?(\d{2,4}(?:\.\d+)?)',
 
         # Urine Examination (Requires explicit urine context or exact pH to prevent matching telephone 'Ph.')
+        "urine_volume": r'\bVolume\b[^\d\n]*?(\d+)',
         "urine_ph": r'(?:Urine\s*pH|Reaction\s*[\/\(]?\s*pH|pH\s*\(Urine\)|\bpH\b)\s*[:\-]?\s*(\d+\.?\d*)',
         "urine_sp_gravity": r'(?:Sp\.\s*Gravity|Specific\s*Gravity)[^\d\n]*?(\d+\.?\d*)',
     }
@@ -758,7 +765,7 @@ def parse_clinical_text(text: str, header_text: Optional[str] = None) -> Extract
 
     # Filter out lab headers, addresses, disclaimers, reference intervals, specimen info, and demographic noise
     ignore_noise = re.compile(
-        r'(?:phone|tele|cin|reg|date|dr\b|mbbs|md\b|nabh|iso|page|pathology|unipath|center|email|time|age|sex|'
+        r'(?:phone|tele|cin|reg|date|dr\b|mbbs|md\b|b\.?sc\b|m\.?l\.?t\b|dnb\b|nabh|iso|page|pathology|unipath|center|email|time|age|sex|'
         r'location|dispatch|collected|report|test\s*report|parameter|result|interval|'
         r'\byrs?\b|\byears?\b|prediabetes|diabetes|normal\s*[:;]|analytical\s*part|we\s*are\s*open|'
         r'liver\s*function\s*test|serum\s*protein|a[\/\s]g\s*ratio|serum\s*bilirubin|0281\d+|70960\d+|\bte\s*rom\b|'
@@ -778,15 +785,27 @@ def parse_clinical_text(text: str, header_text: Optional[str] = None) -> Extract
         r'shivarn|olymous|olympus|khadi|udhyog|vidhyanagar|vidhyanogar|square|road|rajkot|hospital|calculated|alee|path\b|'
         r'ott\b|domino|bes\b|fii\b|eee\b|\bgidl\b|\d+\.\.\.|'
         r'\d{2}[-\/][A-Za-z0-9]{3}[-\/]\d{4}|'
-        r'\d+\s*[-=]\s*\d+)',
+        r'\d+\s*[-=]\s*\d+|'
+        r'pid\s*:?|lab\s*id\s*:?|pts?\.?\s*name|patient\s*name|age\s*\/\s*gender|ref\.?\s*by|colle?\.?\s*on|reg\.?\s*on|report\s*on|'
+        r'working\s*hours|emergency\s*service|mo\.?\s*:\s*\d+|branch\s*:|electronically\s*authenticated|'
+        r'control\b|below\s*\d+|above\s*\d+|panic\s*value|action\s*suggested|correlate|condition\b|'
+        r'average\s*blood\s*glucose|past\s*three\s*months|calculated\s*from\s*hba1c|instrument\s*:|cell\s*counter|'
+        r'men\s*:\s*\d|women\s*:\s*\d)',
+        re.IGNORECASE
+    )
+
+    narrative_noise = re.compile(
+        r'(?:synthesized\s*and\s*secreted|anterior\s*pituitary|feedback\s*mechanism|tripeptide|thyrotropin|hypertrophy|quantification\s*of|differentiate|primary\s*hypothyroidism|secondary\s*and\s*tertiary|during\s*pregnancy|trimester\s*:|note\s*:|please\s*correlate|clinical\s*condition)',
         re.IGNORECASE
     )
 
     PARAM_ALIASES = {
+        "urine_volume": ["volume", "urine volume"],
         "urine_colour": ["colour", "color", "pale yellow"],
         "urine_odour": ["odour", "odor", "non specific"],
         "urine_clarity": ["clarity", "turbid", "slight turbid"],
-        "hematocrit": ["hematocrit", "hematrocrit", "hematrocrt", "pcv"],
+        "hematocrit": ["hematocrit", "hematrocrit", "hematrocrt", "pcv", "hct"],
+        "platelet_count": ["platelet", "platelets", "platelet count", "platelets count"],
         "rdw": ["rdw", "row"],
         "mch": ["mch", "mich"],
         "mcv": ["mcv"],
@@ -798,7 +817,8 @@ def parse_clinical_text(text: str, header_text: Optional[str] = None) -> Extract
         "monocytes": ["monocyte"],
         "eosinophils": ["eosinophil", "eos"],
         "basophils": ["basophil"],
-        "fasting_glucose": ["glucose", "plasma glucose", "sugar", "fasting"],
+        "fasting_glucose": ["glucose", "plasma glucose", "sugar", "fasting", "fasting blood glucose"],
+        "pp_glucose": ["post prandial", "post prandial blood glucose", "post prandial 2 hrs blood glucose", "ppbs", "pp glucose"],
         "esr": ["esr", "sedimentation", "erythrocyte", "edta"],
         "calcium": ["calcium"],
         "phosphorous": ["phosphor", "phosphorous", "phosphorus"],
@@ -860,10 +880,16 @@ def parse_clinical_text(text: str, header_text: Optional[str] = None) -> Extract
         if s in PARAM_ALIASES:
             extracted_keywords.update(PARAM_ALIASES[s])
 
+    unparsed_tests = []
+    non_preset_lines = []
+
     for l in raw_lines:
         clean_l = l.strip()
         if len(clean_l) > 4 and re.search(r'\d', clean_l):
             if ignore_noise.search(clean_l):
+                continue
+            if narrative_noise.search(clean_l) or len(clean_l.split()) > 10:
+                non_preset_lines.append(clean_l)
                 continue
             # A valid clinical line must contain at least one medical or descriptive word with >= 3 letters (ignoring unit abbreviations)
             line_no_units = re.sub(r'[\/\%]|(?:\b|\d)(?:gidl|g\/dl|mg\/dl|u\/l|f[ol]mm|f?crmm|c?mm|fl|pg)\b', '', clean_l, flags=re.IGNORECASE)
@@ -871,15 +897,29 @@ def parse_clinical_text(text: str, header_text: Optional[str] = None) -> Extract
                 continue
             already_covered = any(k in clean_l.lower() for k in extracted_keywords)
             if not already_covered:
-                unparsed.append(clean_l)
+                unparsed_tests.append(clean_l)
 
-    report.unparsed_lines = unparsed[:8]
+    report.unparsed_lines = unparsed_tests[:8]
+    report.non_preset_lines = non_preset_lines[:8]
+
+    # Track 1: Test Presets Extraction Status
     if len(report.parameters) == 0:
-        report.extraction_quality = "EMPTY"
-    elif len(unparsed) > 1:
-        report.extraction_quality = "PARTIAL"
+        report.test_preset_quality = "EMPTY"
+    elif len(unparsed_tests) > 0:
+        report.test_preset_quality = "PARTIAL"
     else:
-        report.extraction_quality = "COMPLETE"
+        report.test_preset_quality = "COMPLETE"
+
+    report.extraction_quality = report.test_preset_quality
+
+    # Track 2: Other than Test Preset Data Status
+    if len(non_preset_lines) > 0:
+        if any(narrative_noise.search(l) for l in non_preset_lines):
+            report.non_preset_quality = "NARRATIVE_NOTES"
+        else:
+            report.non_preset_quality = "UNPARSED_LINES"
+    else:
+        report.non_preset_quality = "CLEAN"
 
     return report
 
@@ -957,7 +997,16 @@ def process_pdf(pdf_path: str, output_dir: Optional[str] = None) -> dict:
     page_prefix = os.path.join(output_dir, f"{base_name}_p")
 
     generated_pngs = []
-    if pdftoppm_cmd:
+    # Check if page PNGs are already extracted in output_dir
+    for f in os.listdir(output_dir):
+        if f.startswith(f"{base_name}_p-") and f.endswith(".png"):
+            m = re.search(r"-(\d+)\.png$", f)
+            if m:
+                page_num = int(m.group(1))
+                generated_pngs.append((page_num, os.path.join(output_dir, f), f))
+    generated_pngs.sort(key=lambda x: x[0])
+
+    if not generated_pngs and pdftoppm_cmd:
         try:
             subprocess.run(
                 [pdftoppm_cmd, "-png", "-r", "200", pdf_path, page_prefix],
@@ -976,6 +1025,13 @@ def process_pdf(pdf_path: str, output_dir: Optional[str] = None) -> dict:
             sys.stderr.write(f"pdftoppm failed: {e}\n")
 
     total_pages = len(generated_pngs) if generated_pngs else 1
+    try:
+        import fitz
+        doc = fitz.open(pdf_path)
+        total_pages = max(total_pages, len(doc))
+        doc.close()
+    except Exception:
+        pass
 
     all_pages_data = []
     combined_parameters = []
@@ -1058,11 +1114,14 @@ def process_pdf(pdf_path: str, output_dir: Optional[str] = None) -> dict:
             "raw_text": page_text[:1000],
             "parameters": page_params,
             "unparsed_lines": page_report.unparsed_lines,
-            "extraction_quality": page_report.extraction_quality,
+            "non_preset_lines": page_report.non_preset_lines,
+            "extraction_quality": page_report.test_preset_quality,
+            "test_preset_quality": page_report.test_preset_quality,
+            "non_preset_quality": page_report.non_preset_quality,
         })
 
     overall_quality = "COMPLETE" if len(combined_parameters) > 0 else "EMPTY"
-    if any(p.get("extraction_quality") == "PARTIAL" for p in all_pages_data) or len(combined_unparsed) > 1:
+    if any(p.get("test_preset_quality") == "PARTIAL" for p in all_pages_data):
         overall_quality = "PARTIAL"
 
     return {
@@ -1079,6 +1138,8 @@ def process_pdf(pdf_path: str, output_dir: Optional[str] = None) -> dict:
         "parameters": [p.model_dump() for p in combined_parameters],
         "unparsed_lines": combined_unparsed[:10],
         "extraction_quality": overall_quality,
+        "test_preset_quality": overall_quality,
+        "non_preset_quality": "NARRATIVE_NOTES" if any(p.get("non_preset_quality") == "NARRATIVE_NOTES" for p in all_pages_data) else ("UNPARSED_LINES" if any(p.get("non_preset_quality") == "UNPARSED_LINES" for p in all_pages_data) else "CLEAN"),
         "pdf_pages": all_pages_data,
     }
 

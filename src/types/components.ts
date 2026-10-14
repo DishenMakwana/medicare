@@ -122,8 +122,11 @@ export interface PageInspectModalProps {
     imageUrl: string;
     pageNumber?: number;
     unparsedLines?: string[];
+    nonPresetLines?: string[];
     ocrStatus?: string;
     extractionQuality?: string;
+    testPresetStatus?: string;
+    nonPresetStatus?: string;
   }>;
   initialPageIndex?: number;
   initialTab?: "ADD_TEST" | "VIEW_TESTS";
@@ -163,6 +166,7 @@ export interface PageInspectModalProps {
   doctorRef?: string | null;
   onAddParameter?: (newParam: any) => void;
   onUpdateParameter?: (index: number, updatedParam: any) => void;
+  onDeleteParameter?: (index: number) => void;
 }
 
 // ----------------------------------------------------

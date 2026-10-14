@@ -104,6 +104,10 @@ export interface ReportPageProps {
   params: Promise<{ id: string }>;
 }
 
+export interface ReportUploadClientProps {
+  initialMembers: FamilyMember[];
+}
+
 export interface MultiPhotoDropzoneProps {
   onExtractionComplete: (data: any) => void;
 }
@@ -187,4 +191,34 @@ export interface VitalsDashboardClientProps {
 
 export interface VitalsTrendChartProps {
   vitals: DailyVital[];
+}
+
+// ----------------------------------------------------
+// Component State, Filter & Cache Primitives
+// ----------------------------------------------------
+
+export type ReportStatusFilterType = "ALL" | "FLAGGED" | "OPTIMAL";
+export type VitalTypeFilter = "ALL" | "BLOOD_PRESSURE" | "BLOOD_SUGAR";
+export type InspectModalTabType = "ADD_TEST" | "VIEW_TESTS";
+
+export interface Point2D {
+  x: number;
+  y: number;
+}
+
+export interface ImageToDelete {
+  image: any;
+  index: number;
+}
+
+export interface ParamToDelete {
+  param: any;
+  originalIndex?: number;
+  index?: number;
+}
+
+export interface CacheEntry<T> {
+  data: T;
+  created: number;
+  expiry: number;
 }

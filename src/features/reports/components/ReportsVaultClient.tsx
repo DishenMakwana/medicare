@@ -13,7 +13,7 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { ReportCard } from "@/features/reports/components/ReportCard";
-import type { ReportsVaultClientProps } from "@/types";
+import type { ReportsVaultClientProps, ReportStatusFilterType } from "@/types";
 
 export function ReportsVaultClient({
   reports,
@@ -21,9 +21,8 @@ export function ReportsVaultClient({
 }: ReportsVaultClientProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedMember, setSelectedMember] = useState<string>("ALL");
-  const [statusFilter, setStatusFilter] = useState<
-    "ALL" | "FLAGGED" | "OPTIMAL"
-  >("ALL");
+  const [statusFilter, setStatusFilter] =
+    useState<ReportStatusFilterType>("ALL");
 
   // Summary Metrics
   const totalReports = reports.length;

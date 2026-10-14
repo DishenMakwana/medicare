@@ -12,7 +12,7 @@ import {
 import { VitalsTrendChart } from "@/features/analytics/components/VitalsTrendChart";
 import { VitalsModal } from "@/features/vitals/components/VitalsModal";
 import { formatDateTime } from "@/lib/utils";
-import type { VitalsDashboardClientProps } from "@/types";
+import type { VitalsDashboardClientProps, VitalTypeFilter } from "@/types";
 
 export function VitalsDashboardClient({
   vitals,
@@ -20,9 +20,7 @@ export function VitalsDashboardClient({
 }: VitalsDashboardClientProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<string>("ALL");
-  const [selectedType, setSelectedType] = useState<
-    "ALL" | "BLOOD_PRESSURE" | "BLOOD_SUGAR"
-  >("ALL");
+  const [selectedType, setSelectedType] = useState<VitalTypeFilter>("ALL");
 
   // Calculate 7-day averages for telemetry
   const now = new Date();

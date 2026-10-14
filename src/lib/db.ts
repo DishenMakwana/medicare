@@ -2,7 +2,13 @@ import fs from "fs";
 import path from "path";
 import { cache } from "react";
 import { PrismaClient } from "@prisma/client";
-import { FamilyMember, MedicalReport, DailyVital, TestPreset } from "@/types";
+import {
+  FamilyMember,
+  MedicalReport,
+  DailyVital,
+  TestPreset,
+  CacheEntry,
+} from "@/types";
 import { initialTestPresets } from "./seed-data";
 import { cleanPersonName } from "./name-normalizer";
 import { calculateAge } from "./utils";
@@ -39,12 +45,6 @@ function updateGlobalCacheEpoch(): void {
   try {
     fs.writeFileSync(CACHE_EPOCH_FILE, String(Date.now()), "utf-8");
   } catch {}
-}
-
-interface CacheEntry<T> {
-  data: T;
-  created: number;
-  expiry: number;
 }
 
 const globalForCache = globalThis as unknown as {
@@ -435,9 +435,7 @@ export const db = {
       // Ensure every parameter has its associated TestPreset and database ID attached
       if (report.parameters && report.parameters.length > 0) {
         const lab = report.labName ? report.labName.trim() : null;
-        const dbPresets = await prisma.testPreset.findMany({
-          orderBy: { name: "asc" },
-        });
+        const dbPresets = [...(await db.getTestPresets())];
 
         const enhancedParameters = await Promise.all(
           report.parameters.map(async (param) => {
@@ -478,6 +476,7 @@ export const db = {
                   },
                 });
                 dbPresets.push(matched);
+                memoryCache.invalidatePrefix("presets");
               } catch (err) {
                 console.warn(
                   "Could not auto-create preset for parameter:",

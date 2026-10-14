@@ -28,7 +28,13 @@ import { createFamilyMember } from "@/features/members/actions";
 import { saveVerifiedReport } from "../actions";
 import { matchFamilyMember } from "@/lib/name-normalizer";
 import { PageInspectModal } from "./PageInspectModal";
-import type { FamilyMember, ExtractionReviewTableProps } from "@/types";
+import type {
+  FamilyMember,
+  ExtractionReviewTableProps,
+  InspectModalTabType,
+  ImageToDelete,
+  ParamToDelete,
+} from "@/types";
 
 export function ExtractionReviewTable({
   extractedData,
@@ -129,19 +135,16 @@ export function ExtractionReviewTable({
 
   // Unified Page Inspect & Add/Verify Test Modal state
   const [inspectPageIndex, setInspectPageIndex] = useState<number | null>(null);
-  const [inspectModalTab, setInspectModalTab] = useState<
-    "ADD_TEST" | "VIEW_TESTS"
-  >("ADD_TEST");
+  const [inspectModalTab, setInspectModalTab] =
+    useState<InspectModalTabType>("ADD_TEST");
 
   // Deletion modal states
-  const [imageToDelete, setImageToDelete] = useState<{
-    image: any;
-    index: number;
-  } | null>(null);
-  const [paramToDelete, setParamToDelete] = useState<{
-    param: any;
-    index: number;
-  } | null>(null);
+  const [imageToDelete, setImageToDelete] = useState<ImageToDelete | null>(
+    null,
+  );
+  const [paramToDelete, setParamToDelete] = useState<ParamToDelete | null>(
+    null,
+  );
 
   // Per-page extraction analytics - only consider pages with genuinely incomplete test presets
   const pagesSummary = extractedData.pagesSummary || [];

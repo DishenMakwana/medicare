@@ -8,7 +8,10 @@ export const revalidate = 0;
 
 export default async function ReportDetailPage({ params }: ReportPageProps) {
   const { id } = await params;
-  const report = await db.getReportById(id);
+  const [report] = await Promise.all([
+    db.getReportById(id),
+    db.getTestPresets(),
+  ]);
 
   if (!report) {
     notFound();

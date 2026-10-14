@@ -1,5 +1,10 @@
 import { PrismaClient } from "@prisma/client";
-import { initialFamilyMembers, initialReports, initialVitals } from "../src/lib/seed-data";
+import {
+  initialFamilyMembers,
+  initialReports,
+  initialTestPresets,
+  initialVitals,
+} from "../src/lib/seed-data";
 
 const prisma = new PrismaClient();
 
@@ -114,7 +119,6 @@ async function main() {
   console.log(`Seeded ${initialVitals.length} daily vitals records.`);
 
   // 4. Seed Standard Clinical Test Presets
-  const { initialTestPresets } = await import("../src/lib/seed-data");
   let presetCount = 0;
   for (const preset of initialTestPresets) {
     const existing = await prisma.testPreset.findFirst({

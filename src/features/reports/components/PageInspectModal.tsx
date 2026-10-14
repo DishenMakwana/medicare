@@ -25,7 +25,13 @@ import {
 } from "lucide-react";
 import { DeleteConfirmModal } from "@/components/ui/DeleteConfirmModal";
 import { getTestPresetsAction, saveTestPresetAction } from "../actions";
-import type { TestPreset, PageInspectModalProps } from "@/types";
+import type {
+  TestPreset,
+  PageInspectModalProps,
+  InspectModalTabType,
+  ParamToDelete,
+  Point2D,
+} from "@/types";
 
 export function PageInspectModal({
   isOpen,
@@ -41,20 +47,17 @@ export function PageInspectModal({
   onDeleteParameter,
 }: PageInspectModalProps) {
   const [currentIndex, setCurrentIndex] = useState(initialPageIndex);
-  const [activeTab, setActiveTab] = useState<"ADD_TEST" | "VIEW_TESTS">(
-    initialTab,
+  const [activeTab, setActiveTab] = useState<InspectModalTabType>(initialTab);
+  const [paramToDelete, setParamToDelete] = useState<ParamToDelete | null>(
+    null,
   );
-  const [paramToDelete, setParamToDelete] = useState<{
-    param: any;
-    originalIndex: number;
-  } | null>(null);
 
   // Zoom / Pan / Rotate states
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [pan, setPan] = useState<Point2D>({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [dragStart, setDragStart] = useState<Point2D>({ x: 0, y: 0 });
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Add Parameter Form states
@@ -1327,10 +1330,14 @@ export function PageInspectModal({
               paramToDelete.param.paramName ||
               paramToDelete.param.param_name ||
               "Biomarker";
-            if (editingIndex === paramToDelete.originalIndex) {
-              handleStartAddNew();
+            const targetIndex =
+              paramToDelete.originalIndex ?? paramToDelete.index;
+            if (targetIndex !== undefined) {
+              if (editingIndex === targetIndex) {
+                handleStartAddNew();
+              }
+              onDeleteParameter?.(targetIndex);
             }
-            onDeleteParameter?.(paramToDelete.originalIndex);
             setJustAddedSuccess(`Removed "${deletedName}"`);
             setTimeout(() => setJustAddedSuccess(null), 3000);
             setParamToDelete(null);

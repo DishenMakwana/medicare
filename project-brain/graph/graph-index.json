@@ -1,0 +1,27 @@
+{
+  "byRoute": {
+    "/": "page-dashboard",
+    "/members": "page-members",
+    "/members/[id]": "page-member-detail",
+    "/reports": "page-reports",
+    "/reports/[id]": "page-report-detail",
+    "/reports/upload": "page-report-upload",
+    "/vitals": "page-vitals",
+    "/api/members": "api-members",
+    "/api/reports/extract": "api-extract"
+  },
+  "byModel": {
+    "FamilyMember": "model-family-member",
+    "MedicalReport": "model-medical-report",
+    "ReportParameter": "model-report-parameter",
+    "ReportImage": "model-report-image",
+    "TestPreset": "model-test-preset",
+    "DailyVital": "model-daily-vital"
+  },
+  "byFeature": {
+    "members": ["page-members", "page-member-detail", "cmp-member-card", "cmp-member-modal", "cmp-members-list", "cmp-member-profile", "act-members"],
+    "reports": ["page-reports", "page-report-detail", "page-report-upload", "cmp-report-card", "cmp-reports-vault", "cmp-report-detail", "cmp-report-upload", "cmp-dropzone", "cmp-review-table", "cmp-page-inspect-modal", "act-reports"],
+    "vitals": ["page-vitals", "cmp-vitals-dashboard", "cmp-vitals-modal", "cmp-vitals-chart", "act-vitals"],
+    "ocr": ["api-extract", "srv-ocr", "srv-normalizer"]
+  }
+}

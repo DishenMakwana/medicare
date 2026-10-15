@@ -1,0 +1,14 @@
+{
+  "project": "Medicare",
+  "version": "2.0.0",
+  "updatedAt": "2026-10-15",
+  "totalNodes": 35,
+  "totalEdges": 35,
+  "layers": [
+    "routes",
+    "components",
+    "actions",
+    "services",
+    "models"
+  ]
+}

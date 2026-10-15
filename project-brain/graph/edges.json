@@ -1,0 +1,54 @@
+[
+  { "from": "page-dashboard", "to": "srv-db", "type": "queries" },
+  { "from": "page-dashboard", "to": "cmp-member-card", "type": "renders" },
+  { "from": "page-dashboard", "to": "cmp-report-card", "type": "renders" },
+  { "from": "page-dashboard", "to": "cmp-vitals-chart", "type": "renders" },
+  { "from": "page-dashboard", "to": "cmp-stat-card", "type": "renders" },
+
+  { "from": "page-members", "to": "srv-db", "type": "queries" },
+  { "from": "page-members", "to": "cmp-members-list", "type": "renders" },
+  { "from": "cmp-members-list", "to": "cmp-member-card", "type": "renders" },
+  { "from": "cmp-members-list", "to": "cmp-member-modal", "type": "renders" },
+
+  { "from": "page-member-detail", "to": "srv-db", "type": "queries" },
+  { "from": "page-member-detail", "to": "cmp-member-profile", "type": "renders" },
+  { "from": "cmp-member-profile", "to": "act-members", "type": "calls" },
+
+  { "from": "page-reports", "to": "srv-db", "type": "queries" },
+  { "from": "page-reports", "to": "cmp-reports-vault", "type": "renders" },
+  { "from": "cmp-reports-vault", "to": "cmp-report-card", "type": "renders" },
+
+  { "from": "page-report-detail", "to": "srv-db", "type": "queries" },
+  { "from": "page-report-detail", "to": "cmp-report-detail", "type": "renders" },
+  { "from": "cmp-report-detail", "to": "cmp-range-bar", "type": "renders" },
+  { "from": "cmp-report-detail", "to": "cmp-page-inspect-modal", "type": "renders" },
+  { "from": "cmp-report-detail", "to": "act-reports", "type": "calls" },
+
+  { "from": "page-report-upload", "to": "srv-db", "type": "queries" },
+  { "from": "page-report-upload", "to": "cmp-report-upload", "type": "renders" },
+  { "from": "cmp-report-upload", "to": "cmp-dropzone", "type": "renders" },
+  { "from": "cmp-report-upload", "to": "cmp-review-table", "type": "renders" },
+  { "from": "cmp-dropzone", "to": "api-extract", "type": "calls" },
+  { "from": "cmp-review-table", "to": "act-reports", "type": "calls" },
+  { "from": "cmp-review-table", "to": "srv-normalizer", "type": "calls" },
+
+  { "from": "page-vitals", "to": "srv-db", "type": "queries" },
+  { "from": "page-vitals", "to": "cmp-vitals-dashboard", "type": "renders" },
+  { "from": "cmp-vitals-dashboard", "to": "cmp-vitals-chart", "type": "renders" },
+  { "from": "cmp-vitals-dashboard", "to": "cmp-vitals-modal", "type": "renders" },
+  { "from": "cmp-vitals-modal", "to": "act-vitals", "type": "calls" },
+
+  { "from": "api-extract", "to": "srv-ocr", "type": "invokes" },
+  { "from": "srv-ocr", "to": "srv-normalizer", "type": "uses" },
+
+  { "from": "act-members", "to": "srv-db", "type": "mutates" },
+  { "from": "act-reports", "to": "srv-db", "type": "mutates" },
+  { "from": "act-vitals", "to": "srv-db", "type": "mutates" },
+
+  { "from": "srv-db", "to": "model-family-member", "type": "persists" },
+  { "from": "srv-db", "to": "model-medical-report", "type": "persists" },
+  { "from": "srv-db", "to": "model-report-parameter", "type": "persists" },
+  { "from": "srv-db", "to": "model-report-image", "type": "persists" },
+  { "from": "srv-db", "to": "model-test-preset", "type": "persists" },
+  { "from": "srv-db", "to": "model-daily-vital", "type": "persists" }
+]

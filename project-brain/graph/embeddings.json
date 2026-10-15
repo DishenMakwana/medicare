@@ -1,0 +1,24 @@
+{
+  "domains": {
+    "family_members": {
+      "keywords": ["member", "patient", "relation", "age", "dob", "avatar", "aliases"],
+      "primaryFiles": ["src/features/members/", "src/app/members/"]
+    },
+    "medical_reports": {
+      "keywords": ["report", "lab", "parameter", "biomarker", "preset", "pdf", "scan", "upload"],
+      "primaryFiles": ["src/features/reports/", "src/app/reports/"]
+    },
+    "vitals_telemetry": {
+      "keywords": ["vitals", "bp", "blood_pressure", "sugar", "systolic", "diastolic", "fasting", "post_prandial"],
+      "primaryFiles": ["src/features/vitals/", "src/features/analytics/", "src/app/vitals/"]
+    },
+    "ocr_extraction": {
+      "keywords": ["tesseract", "poppler", "pdf2image", "extract_report", "unparsed", "ocrStatus"],
+      "primaryFiles": ["scripts/extract_report.py", "src/lib/python-runner.ts", "src/app/api/reports/extract/"]
+    },
+    "database_and_caching": {
+      "keywords": ["prisma", "postgres", "memoryCache", "epoch", "revalidate", "Promise.all", "cache"],
+      "primaryFiles": ["src/lib/db.ts", "prisma/schema.prisma", "src/lib/cache-actions.ts"]
+    }
+  }
+}

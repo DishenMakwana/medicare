@@ -1,0 +1,52 @@
+[
+  { "id": "page-dashboard", "type": "route", "name": "DashboardPage", "file": "src/app/page.tsx" },
+  { "id": "page-members", "type": "route", "name": "MembersPage", "file": "src/app/members/page.tsx" },
+  { "id": "page-member-detail", "type": "route", "name": "MemberDetailPage", "file": "src/app/members/[id]/page.tsx" },
+  { "id": "page-reports", "type": "route", "name": "ReportsPage", "file": "src/app/reports/page.tsx" },
+  { "id": "page-report-detail", "type": "route", "name": "ReportDetailPage", "file": "src/app/reports/[id]/page.tsx" },
+  { "id": "page-report-upload", "type": "route", "name": "ReportUploadPage", "file": "src/app/reports/upload/page.tsx" },
+  { "id": "page-vitals", "type": "route", "name": "VitalsPage", "file": "src/app/vitals/page.tsx" },
+
+  { "id": "api-members", "type": "api", "name": "ApiMembers", "file": "src/app/api/members/route.ts" },
+  { "id": "api-extract", "type": "api", "name": "ApiReportExtract", "file": "src/app/api/reports/extract/route.ts" },
+
+  { "id": "cmp-navbar", "type": "component", "name": "Navbar", "file": "src/components/layout/Navbar.tsx" },
+  { "id": "cmp-stat-card", "type": "component", "name": "StatCard", "file": "src/components/ui/StatCard.tsx" },
+  { "id": "cmp-range-bar", "type": "component", "name": "RangeBar", "file": "src/components/ui/RangeBar.tsx" },
+  { "id": "cmp-delete-modal", "type": "component", "name": "DeleteConfirmModal", "file": "src/components/ui/DeleteConfirmModal.tsx" },
+  { "id": "cmp-refresh-cache-btn", "type": "component", "name": "RefreshCacheButton", "file": "src/components/ui/RefreshCacheButton.tsx" },
+
+  { "id": "cmp-member-card", "type": "component", "name": "MemberCard", "file": "src/features/members/components/MemberCard.tsx" },
+  { "id": "cmp-member-modal", "type": "component", "name": "MemberModal", "file": "src/features/members/components/MemberModal.tsx" },
+  { "id": "cmp-members-list", "type": "component", "name": "MembersListClient", "file": "src/features/members/components/MembersListClient.tsx" },
+  { "id": "cmp-member-profile", "type": "component", "name": "MemberProfileClient", "file": "src/features/members/components/MemberProfileClient.tsx" },
+
+  { "id": "cmp-report-card", "type": "component", "name": "ReportCard", "file": "src/features/reports/components/ReportCard.tsx" },
+  { "id": "cmp-reports-vault", "type": "component", "name": "ReportsVaultClient", "file": "src/features/reports/components/ReportsVaultClient.tsx" },
+  { "id": "cmp-report-detail", "type": "component", "name": "ReportDetailClient", "file": "src/features/reports/components/ReportDetailClient.tsx" },
+  { "id": "cmp-report-upload", "type": "component", "name": "ReportUploadClient", "file": "src/features/reports/components/ReportUploadClient.tsx" },
+  { "id": "cmp-dropzone", "type": "component", "name": "MultiPhotoDropzone", "file": "src/features/reports/components/MultiPhotoDropzone.tsx" },
+  { "id": "cmp-review-table", "type": "component", "name": "ExtractionReviewTable", "file": "src/features/reports/components/ExtractionReviewTable.tsx" },
+  { "id": "cmp-page-inspect-modal", "type": "component", "name": "PageInspectModal", "file": "src/features/reports/components/PageInspectModal.tsx" },
+
+  { "id": "cmp-vitals-dashboard", "type": "component", "name": "VitalsDashboardClient", "file": "src/features/vitals/components/VitalsDashboardClient.tsx" },
+  { "id": "cmp-vitals-modal", "type": "component", "name": "VitalsModal", "file": "src/features/vitals/components/VitalsModal.tsx" },
+  { "id": "cmp-vitals-chart", "type": "component", "name": "VitalsTrendChart", "file": "src/features/analytics/components/VitalsTrendChart.tsx" },
+
+  { "id": "act-members", "type": "action", "name": "MemberActions", "file": "src/features/members/actions.ts" },
+  { "id": "act-reports", "type": "action", "name": "ReportActions", "file": "src/features/reports/actions.ts" },
+  { "id": "act-vitals", "type": "action", "name": "VitalActions", "file": "src/features/vitals/actions.ts" },
+  { "id": "act-cache", "type": "action", "name": "CacheActions", "file": "src/lib/cache-actions.ts" },
+
+  { "id": "srv-db", "type": "service", "name": "DatabaseService", "file": "src/lib/db.ts" },
+  { "id": "srv-normalizer", "type": "service", "name": "NameNormalizer", "file": "src/lib/name-normalizer.ts" },
+  { "id": "srv-ocr", "type": "service", "name": "PythonRunner", "file": "src/lib/python-runner.ts" },
+  { "id": "srv-utils", "type": "service", "name": "Utils", "file": "src/lib/utils.ts" },
+
+  { "id": "model-family-member", "type": "model", "name": "FamilyMember", "file": "prisma/schema.prisma" },
+  { "id": "model-medical-report", "type": "model", "name": "MedicalReport", "file": "prisma/schema.prisma" },
+  { "id": "model-report-parameter", "type": "model", "name": "ReportParameter", "file": "prisma/schema.prisma" },
+  { "id": "model-report-image", "type": "model", "name": "ReportImage", "file": "prisma/schema.prisma" },
+  { "id": "model-test-preset", "type": "model", "name": "TestPreset", "file": "prisma/schema.prisma" },
+  { "id": "model-daily-vital", "type": "model", "name": "DailyVital", "file": "prisma/schema.prisma" }
+]

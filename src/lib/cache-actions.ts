@@ -16,11 +16,13 @@ export async function clearAllCachesAction() {
     revalidatePath("/vitals");
     revalidatePath("/reports/upload");
     return { success: true, timestamp: Date.now() };
-  } catch (err: any) {
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Failed to clear caches";
     console.error("[Cache] Failed to clear server caches:", err);
     return {
       success: false,
-      error: err?.message || "Failed to clear caches",
+      error: message,
       timestamp: Date.now(),
     };
   }

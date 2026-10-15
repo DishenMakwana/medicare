@@ -106,9 +106,11 @@ export function MemberModal({
       setNotes("");
       setErrorMessage(null);
       onClose();
-      if (onSuccess) onSuccess(created as unknown as FamilyMember);
-    } catch (err: any) {
-      setErrorMessage(err.message || "Failed to add family member.");
+      if (onSuccess) onSuccess(created as FamilyMember);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to add family member.";
+      setErrorMessage(message);
     } finally {
       setIsSubmitting(false);
     }

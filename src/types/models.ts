@@ -19,7 +19,7 @@ export interface FamilyMember {
 export interface MedicalReport {
   id: number | string;
   customId?: string | null;
-  familyMemberId: number | string;
+  familyMemberId?: number | string;
   familyMember?: FamilyMember;
   title: string;
   labName?: string | null;
@@ -31,9 +31,9 @@ export interface MedicalReport {
   overallStatus?: "NORMAL" | "ATTENTION_NEEDED" | "CRITICAL" | string | null;
   notes?: string | null;
   images?: ReportImage[];
-  parameters: ReportParameter[];
-  createdAt: string | Date;
-  updatedAt: string | Date;
+  parameters?: ReportParameter[];
+  createdAt?: string | Date;
+  updatedAt?: string | Date;
 }
 
 export interface ReportImage {
@@ -72,7 +72,7 @@ export interface DailyVital {
   familyMemberId: number | string;
   familyMember?: FamilyMember;
   recordDate: string | Date;
-  vitalType: "BLOOD_PRESSURE" | "BLOOD_SUGAR";
+  vitalType: "BLOOD_PRESSURE" | "BLOOD_SUGAR" | string;
   systolic?: number | null;
   diastolic?: number | null;
   pulseRate?: number | null;
@@ -83,69 +83,16 @@ export interface DailyVital {
   createdAt: string | Date;
 }
 
-export interface PageExtractionSummary {
-  pageNumber: number;
-  imageUrl: string;
-  fileName: string;
-  paramCount: number;
-  status: "SUCCESS" | "WARNING" | "EMPTY";
-  extractionQuality?: "COMPLETE" | "PARTIAL" | "EMPTY" | string;
-  testPresetStatus?: "COMPLETE" | "PARTIAL" | "EMPTY";
-  nonPresetStatus?: "CLEAN" | "NARRATIVE_NOTES" | "UNPARSED_LINES" | "NONE";
-  nonPresetLines?: string[];
-  extractedParams?: string[];
-  unparsedLines?: string[];
-  errorReason?: string;
-}
-
-export interface ExtractedReportResult {
-  raw_patient_name: string;
-  clean_patient_name: string;
-  age?: number | null;
-  gender?: string | null;
-  lab_name?: string | null;
-  registration_no?: string | null;
-  report_date?: string | null;
-  collection_date?: string | null;
-  doctor_ref?: string | null;
-  raw_text?: string | null;
-  pagesSummary?: PageExtractionSummary[];
-  hasIncompleteExtraction?: boolean;
-  unparsed_lines?: string[];
-  non_preset_lines?: string[];
-  extraction_quality?: string;
-  test_preset_quality?: "COMPLETE" | "PARTIAL" | "EMPTY";
-  non_preset_quality?: "CLEAN" | "NARRATIVE_NOTES" | "UNPARSED_LINES" | "NONE";
-  is_pdf?: boolean;
-  pdf_pages?: Array<{
-    page_number: number;
-    image_filename: string;
-    image_path?: string | null;
-    raw_text?: string;
-    parameters: any[];
-    unparsed_lines?: string[];
-    non_preset_lines?: string[];
-    extraction_quality?: string;
-    test_preset_quality?: "COMPLETE" | "PARTIAL" | "EMPTY";
-    non_preset_quality?:
-      "CLEAN" | "NARRATIVE_NOTES" | "UNPARSED_LINES" | "NONE";
-  }>;
-  parameters: Array<{
-    category: string;
-    param_name: string;
-    param_slug: string;
-    value_number?: number | null;
-    value_text?: string | null;
-    unit?: string | null;
-    ref_min?: number | null;
-    ref_max?: number | null;
-    ref_text?: string | null;
-    status: string;
-    clinical_method?: string | null;
-    source_page?: number | null;
-    is_incomplete?: boolean;
-  }>;
-}
+export type CachedData =
+  | FamilyMember[]
+  | FamilyMember
+  | MedicalReport[]
+  | MedicalReport
+  | DailyVital[]
+  | DailyVital
+  | TestPreset[]
+  | TestPreset
+  | null;
 
 export interface TestPreset {
   id: number | string;

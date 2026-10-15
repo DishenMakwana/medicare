@@ -31,6 +31,7 @@ import type {
   InspectModalTabType,
   ParamToDelete,
   Point2D,
+  PageInspectParameter,
 } from "@/types";
 
 export function PageInspectModal({
@@ -203,7 +204,7 @@ export function PageInspectModal({
     });
   }, [pageParamsWithIndex, existingSearchFilter]);
 
-  function handleStartEdit(param: any, originalIndex: number) {
+  function handleStartEdit(param: PageInspectParameter, originalIndex: number) {
     setEditingIndex(originalIndex);
     const pName = param.paramName || param.param_name || "";
     setEditingParamOriginalName(pName);
@@ -212,7 +213,7 @@ export function PageInspectModal({
 
     const valNum = param.valueNumber ?? param.value_number;
     const valTxt = param.valueText || param.value_text;
-    if (valNum !== null && valNum !== undefined && valNum !== "") {
+    if (valNum !== null && valNum !== undefined && !Number.isNaN(valNum)) {
       setValueType("number");
       setValueNumber(String(valNum));
       setValueText("");

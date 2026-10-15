@@ -94,8 +94,9 @@ export function MultiPhotoDropzone({
       }
 
       onExtractionComplete(json.data);
-    } catch (err: any) {
-      alert("Extraction failed: " + err.message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      alert("Extraction failed: " + message);
     } finally {
       setIsProcessing(false);
     }

@@ -1,10 +1,18 @@
+import fs from "fs";
+import path from "path";
 import { NextRequest, NextResponse } from "next/server";
 import { runPythonExtraction } from "@/lib/python-runner";
 import { cleanPersonName } from "@/lib/name-normalizer";
 import { db } from "@/lib/db";
-import { PageExtractionSummary } from "@/types";
-import path from "path";
-import fs from "fs";
+import type {
+  PageExtractionSummary,
+  ExtractedReportParameter,
+  ExtractedReportPage,
+  ExtractedReportResult,
+  PageInspectImage,
+  ApiResponse,
+  ApiErrorResponse,
+} from "@/types";
 
 export async function POST(req: NextRequest) {
   try {
@@ -23,12 +31,8 @@ export async function POST(req: NextRequest) {
       fs.mkdirSync(uploadDir, { recursive: true });
     }
 
-    const uploadedImages: Array<{
-      imageUrl: string;
-      pageNumber: number;
-      extractionQuality?: string;
-    }> = [];
-    const aggregatedParameters: any[] = [];
+    const uploadedImages: PageInspectImage[] = [];
+    const aggregatedParameters: ExtractedReportParameter[] = [];
     const pagesSummary: PageExtractionSummary[] = [];
 
     let detectedRawName = "";
@@ -77,16 +81,18 @@ export async function POST(req: NextRequest) {
         extraction.pdf_pages.length > 0
       ) {
         // Multi-page or single-page PDF report: unpack generated page PNGs
-        for (const p of extraction.pdf_pages) {
+        for (const p of extraction.pdf_pages as ExtractedReportPage[]) {
           const pageNum = uploadedImages.length + 1;
           const pageImgUrl = `/uploads/reports/${p.image_filename}`;
-          const pageParams = (p.parameters || []).map((param: any) => ({
-            ...param,
-            source_page: pageNum,
-            is_incomplete:
-              param.value_number === null &&
-              (!param.value_text || param.value_text.trim() === ""),
-          }));
+          const pageParams = (p.parameters || []).map(
+            (param: ExtractedReportParameter) => ({
+              ...param,
+              source_page: pageNum,
+              is_incomplete:
+                param.value_number === null &&
+                (!param.value_text || param.value_text.trim() === ""),
+            }),
+          );
 
           const paramCount = pageParams.length;
           let pageStatus: "SUCCESS" | "WARNING" | "EMPTY" = "SUCCESS";
@@ -96,7 +102,11 @@ export async function POST(req: NextRequest) {
             pageStatus = "EMPTY";
             errorReason =
               "No clinical parameters could be identified from this page. Possible blurry scan or narrative page.";
-          } else if (pageParams.some((param: any) => param.is_incomplete)) {
+          } else if (
+            pageParams.some(
+              (param: ExtractedReportParameter) => param.is_incomplete,
+            )
+          ) {
             pageStatus = "WARNING";
             errorReason =
               "Some parameters on this page have missing or unverified values.";
@@ -141,7 +151,9 @@ export async function POST(req: NextRequest) {
             testPresetStatus,
             nonPresetStatus,
             nonPresetLines: p.non_preset_lines || [],
-            extractedParams: pageParams.map((param: any) => param.param_name),
+            extractedParams: pageParams.map(
+              (param: ExtractedReportParameter) => param.param_name,
+            ),
             unparsedLines: p.unparsed_lines || [],
             errorReason: errorReason || undefined,
           });
@@ -247,7 +259,7 @@ export async function POST(req: NextRequest) {
       try {
         await db.savePresetsFromReport(
           detectedLab,
-          finalParameters.map((p: any) => ({
+          finalParameters.map((p: ExtractedReportParameter) => ({
             category: p.category,
             paramName: p.param_name,
             paramSlug: p.param_slug,
@@ -266,7 +278,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    return NextResponse.json<ApiResponse<ExtractedReportResult>>({
       success: true,
       data: {
         raw_patient_name: detectedRawName || "",
@@ -286,10 +298,12 @@ export async function POST(req: NextRequest) {
         parameters: finalParameters,
       },
     });
-  } catch (error: any) {
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Failed to extract report";
     console.error("API /api/reports/extract error:", error);
-    return NextResponse.json(
-      { error: error.message || "Failed to extract report" },
+    return NextResponse.json<ApiErrorResponse>(
+      { error: message },
       { status: 500 },
     );
   }

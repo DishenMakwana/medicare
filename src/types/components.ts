@@ -5,6 +5,13 @@ import type {
   DailyVital,
   TestPreset,
 } from "./models";
+import type {
+  ExtractedReportResult,
+  PageInspectImage,
+  PageInspectParameter,
+  ImageToDelete,
+  ParamToDelete,
+} from "./extraction";
 
 // ----------------------------------------------------
 // UI Primitives & Layout
@@ -114,11 +121,11 @@ export interface ReportUploadClientProps {
 }
 
 export interface MultiPhotoDropzoneProps {
-  onExtractionComplete: (data: any) => void;
+  onExtractionComplete: (data: ExtractedReportResult) => void;
 }
 
 export interface ExtractionReviewTableProps {
-  extractedData: any;
+  extractedData: ExtractedReportResult;
   members: FamilyMember[];
   onReset: () => void;
 }
@@ -126,55 +133,21 @@ export interface ExtractionReviewTableProps {
 export interface PageInspectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  images: Array<{
-    id?: string | number;
-    imageUrl: string;
-    pageNumber?: number;
-    unparsedLines?: string[];
-    nonPresetLines?: string[];
-    ocrStatus?: string;
-    extractionQuality?: string;
-    testPresetStatus?: string;
-    nonPresetStatus?: string;
-  }>;
+  images: PageInspectImage[];
   initialPageIndex?: number;
-  initialTab?: "ADD_TEST" | "VIEW_TESTS";
-  parameters: Array<{
-    category?: string;
-    paramName?: string;
-    param_name?: string;
-    paramSlug?: string;
-    param_slug?: string;
-    valueNumber?: number | null;
-    value_number?: number | null;
-    valueText?: string | null;
-    value_text?: string | null;
-    unit?: string | null;
-    refMin?: number | null;
-    ref_min?: number | null;
-    refMax?: number | null;
-    ref_max?: number | null;
-    refText?: string | null;
-    ref_text?: string | null;
-    status?: string;
-    clinicalMethod?: string | null;
-    clinical_method?: string | null;
-    sourcePage?: number | null;
-    source_page?: number | null;
-    is_incomplete?: boolean;
-    id?: string | number;
-    testPresetId?: number | null;
-    test_preset_id?: number | null;
-    testPreset?: TestPreset | null;
-  }>;
+  initialTab?: InspectModalTabType;
+  parameters: PageInspectParameter[];
   existingCategories?: string[];
   labName?: string | null;
   reportLabName?: string | null;
   reportDate?: string | Date;
   patientName?: string;
   doctorRef?: string | null;
-  onAddParameter?: (newParam: any) => void;
-  onUpdateParameter?: (index: number, updatedParam: any) => void;
+  onAddParameter?: (newParam: PageInspectParameter) => void;
+  onUpdateParameter?: (
+    index: number,
+    updatedParam: Partial<PageInspectParameter>,
+  ) => void;
   onDeleteParameter?: (index: number) => void;
 }
 
@@ -209,17 +182,6 @@ export type InspectModalTabType = "ADD_TEST" | "VIEW_TESTS";
 export interface Point2D {
   x: number;
   y: number;
-}
-
-export interface ImageToDelete {
-  image: any;
-  index: number;
-}
-
-export interface ParamToDelete {
-  param: any;
-  originalIndex?: number;
-  index?: number;
 }
 
 export interface CacheEntry<T> {

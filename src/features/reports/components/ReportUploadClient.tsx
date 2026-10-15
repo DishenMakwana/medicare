@@ -4,12 +4,17 @@ import { useState } from "react";
 import { Sparkles } from "lucide-react";
 import { MultiPhotoDropzone } from "@/features/reports/components/MultiPhotoDropzone";
 import { ExtractionReviewTable } from "@/features/reports/components/ExtractionReviewTable";
-import type { FamilyMember, ReportUploadClientProps } from "@/types";
+import type {
+  FamilyMember,
+  ReportUploadClientProps,
+  ExtractedReportResult,
+} from "@/types";
 
 export function ReportUploadClient({
   initialMembers,
 }: ReportUploadClientProps) {
-  const [extractedData, setExtractedData] = useState<any | null>(null);
+  const [extractedData, setExtractedData] =
+    useState<ExtractedReportResult | null>(null);
   const [members] = useState<FamilyMember[]>(initialMembers);
 
   return (

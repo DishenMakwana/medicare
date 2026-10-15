@@ -144,8 +144,9 @@ export function VitalsModal({
         setSuccessMsg("");
         onClose();
       }, 1000);
-    } catch (err: any) {
-      alert(err.message || "Failed to log vital");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to log vital";
+      alert(message);
     } finally {
       setIsSubmitting(false);
     }

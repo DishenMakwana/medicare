@@ -36,8 +36,9 @@ export function DeleteConfirmModal({
     try {
       await onConfirm();
       onClose();
-    } catch (err: any) {
-      alert("Failed to delete: " + (err?.message || "Unknown error"));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      alert("Failed to delete: " + message);
     } finally {
       setIsDeleting(false);
     }

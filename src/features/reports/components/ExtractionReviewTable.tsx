@@ -34,6 +34,9 @@ import type {
   InspectModalTabType,
   ImageToDelete,
   ParamToDelete,
+  PageInspectImage,
+  PageInspectParameter,
+  PageExtractionSummary,
 } from "@/types";
 
 export function ExtractionReviewTable({
@@ -81,7 +84,7 @@ export function ExtractionReviewTable({
         relation: "Self",
       });
 
-      const memberObj = created as unknown as FamilyMember;
+      const memberObj = created as FamilyMember;
       setMemberList((prev) => {
         const exists = prev.some((m) => m.id === memberObj.id);
         return exists ? prev : [...prev, memberObj];
@@ -89,8 +92,9 @@ export function ExtractionReviewTable({
       setSelectedMemberId(memberObj.id);
       setNewMemberCreatedBadge(`Created profile for "${memberObj.name}"`);
       setTimeout(() => setNewMemberCreatedBadge(null), 5000);
-    } catch (err: any) {
-      alert("Failed to create member: " + err.message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      alert("Failed to create member: " + message);
     } finally {
       setIsQuickCreatingMember(false);
     }
@@ -126,8 +130,10 @@ export function ExtractionReviewTable({
   const cleanName = extractedData.clean_patient_name || "";
 
   // Images & Parameters
-  const [images, setImages] = useState<any[]>(extractedData.images || []);
-  const [parameters, setParameters] = useState<any[]>(
+  const [images, setImages] = useState<PageInspectImage[]>(
+    extractedData.images || [],
+  );
+  const [parameters, setParameters] = useState<PageInspectParameter[]>(
     extractedData.parameters || [],
   );
   const [activeCategory, setActiveCategory] = useState<string>("ALL");
@@ -148,7 +154,7 @@ export function ExtractionReviewTable({
 
   // Per-page extraction analytics - only consider pages with genuinely incomplete test presets
   const pagesSummary = extractedData.pagesSummary || [];
-  const problemPages = pagesSummary.filter((p: any) => {
+  const problemPages = pagesSummary.filter((p: PageExtractionSummary) => {
     if (p.testPresetStatus) {
       return p.testPresetStatus !== "COMPLETE";
     }
@@ -177,7 +183,11 @@ export function ExtractionReviewTable({
       ? parameters
       : parameters.filter((p) => (p.category || "General") === activeCategory);
 
-  function updateParam(index: number, field: string, value: any) {
+  function updateParam<K extends keyof PageInspectParameter>(
+    index: number,
+    field: K,
+    value: PageInspectParameter[K],
+  ) {
     const updated = [...parameters];
     updated[index] = { ...updated[index], [field]: value };
     setParameters(updated);
@@ -197,7 +207,7 @@ export function ExtractionReviewTable({
     setImageToDelete(null);
   }
 
-  function handleAddParameterManually(newParam: any) {
+  function handleAddParameterManually(newParam: PageInspectParameter) {
     setParameters((prev) => [...prev, newParam]);
     if (
       newParam.category &&
@@ -208,7 +218,10 @@ export function ExtractionReviewTable({
     }
   }
 
-  function handleUpdateParameter(index: number, updatedParam: any) {
+  function handleUpdateParameter(
+    index: number,
+    updatedParam: Partial<PageInspectParameter>,
+  ) {
     setParameters((prev) => {
       const next = [...prev];
       next[index] = { ...next[index], ...updatedParam };
@@ -249,14 +262,19 @@ export function ExtractionReviewTable({
         reportDate,
         collectionDate: collectionDate || null,
         rawPatientName,
-        overallStatus,
-        images: images,
-        parameters: parameters.map((p) => ({
-          category: p.category || "General",
-          paramName: p.param_name,
-          paramSlug:
-            p.param_slug ||
-            p.param_name.toLowerCase().replace(/[^a-z0-9]/g, "_"),
+        images: images.map((img, idx) => ({
+          imageUrl: img.imageUrl,
+          pageNumber: img.pageNumber ?? idx + 1,
+        })),
+        parameters: parameters.map((p) => {
+          const pName = p.param_name || p.paramName || "Parameter";
+          return {
+            category: p.category || "General",
+            paramName: pName,
+            paramSlug:
+              p.param_slug ||
+              p.paramSlug ||
+              pName.toLowerCase().replace(/[^a-z0-9]/g, "_"),
           valueNumber:
             p.value_number !== undefined && p.value_number !== null
               ? Number(p.value_number)
@@ -271,15 +289,18 @@ export function ExtractionReviewTable({
             p.ref_max !== undefined && p.ref_max !== null
               ? Number(p.ref_max)
               : null,
-          refText: p.ref_text || null,
+          refText: p.ref_text || p.refText || null,
           status: p.status || "NORMAL",
           clinicalMethod: p.clinical_method || null,
-        })),
-      });
+        };
+      }),
+      overallStatus,
+    });
 
       router.push(`/reports/${saved.id}`);
-    } catch (err: any) {
-      alert("Failed to save report: " + err.message);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      alert("Failed to save report: " + message);
       setIsSaving(false);
     }
   }
@@ -345,7 +366,7 @@ export function ExtractionReviewTable({
                   Medicare could not reliably extract test values from{" "}
                   <span className="font-bold underline">
                     {problemPages
-                      .map((p: any) => `Page ${p.pageNumber}`)
+                      .map((p: PageExtractionSummary) => `Page ${p.pageNumber}`)
                       .join(", ")}
                   </span>
                   . This usually happens with handwritten notes, stamps, or
@@ -356,7 +377,7 @@ export function ExtractionReviewTable({
             </div>
 
             <div className="flex flex-wrap items-center gap-2 shrink-0">
-              {problemPages.map((p: any) => {
+              {problemPages.map((p: PageExtractionSummary) => {
                 const pageIdx = images.findIndex(
                   (img, idx) => (img.pageNumber || idx + 1) === p.pageNumber,
                 );
@@ -585,7 +606,7 @@ export function ExtractionReviewTable({
               {images.map((img, idx) => {
                 const pageNum = img.pageNumber || idx + 1;
                 const pageSummary = pagesSummary.find(
-                  (p: any) => p.pageNumber === pageNum,
+                  (p: PageExtractionSummary) => p.pageNumber === pageNum,
                 );
                 const pageParamCount = pageSummary
                   ? pageSummary.paramCount
@@ -597,7 +618,7 @@ export function ExtractionReviewTable({
 
                 const quality = (
                   pageSummary?.extractionQuality ||
-                  (img as any)?.extractionQuality ||
+                  img.extractionQuality ||
                   (isPageEmpty
                     ? "EMPTY"
                     : pageSummary?.unparsedLines?.length
@@ -1018,7 +1039,9 @@ export function ExtractionReviewTable({
           onClose={() => setInspectPageIndex(null)}
           images={images.map((img, idx) => {
             const pageNum = img.pageNumber || idx + 1;
-            const ps = pagesSummary.find((p: any) => p.pageNumber === pageNum);
+            const ps = pagesSummary.find(
+              (p: PageExtractionSummary) => p.pageNumber === pageNum,
+            );
             return {
               id: img.id,
               pageNumber: pageNum,

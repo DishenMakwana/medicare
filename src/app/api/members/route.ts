@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
+import type { ApiErrorResponse } from "@/types";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -19,8 +20,12 @@ export async function GET() {
         },
       },
     );
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Failed to fetch members";
+    return NextResponse.json<ApiErrorResponse>(
+      { error: message },
+      { status: 500 },
+    );
   }
 }
 
@@ -37,7 +42,11 @@ export async function POST(req: Request) {
       // Ignore outside request context
     }
     return NextResponse.json({ member: created });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message }, { status: 500 });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Failed to create member";
+    return NextResponse.json<ApiErrorResponse>(
+      { error: message },
+      { status: 500 },
+    );
   }
 }

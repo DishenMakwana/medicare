@@ -1,22 +1,26 @@
 import fs from "fs";
 import path from "path";
 import { cache } from "react";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import {
   FamilyMember,
   MedicalReport,
   DailyVital,
   TestPreset,
   CacheEntry,
+  CachedData,
 } from "@/types";
 import { initialTestPresets } from "./seed-data";
 import { cleanPersonName } from "./name-normalizer";
 import { calculateAge } from "./utils";
 
+interface GlobalPrismaAndCache {
+  prisma?: PrismaClient;
+  localCache?: Map<string, CacheEntry<CachedData>>;
+}
+
 // Prisma Singleton for Next.js to prevent connection pool exhaustion during hot reload
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+const globalForPrisma = globalThis as GlobalPrismaAndCache;
 
 export const prisma =
   globalForPrisma.prisma ??
@@ -47,19 +51,17 @@ function updateGlobalCacheEpoch(): void {
   } catch {}
 }
 
-const globalForCache = globalThis as unknown as {
-  localCache?: Map<string, CacheEntry<unknown>>;
-};
+const globalForCache = globalThis as GlobalPrismaAndCache;
 
 const localCache =
-  globalForCache.localCache ?? new Map<string, CacheEntry<unknown>>();
+  globalForCache.localCache ?? new Map<string, CacheEntry<CachedData>>();
 
 if (!globalForCache.localCache) {
   globalForCache.localCache = localCache;
 }
 
 const memoryCache = {
-  get<T>(key: string): T | null {
+  get<T extends CachedData>(key: string): T | null {
     const entry = localCache.get(key);
     if (!entry) return null;
     const epoch = getGlobalCacheEpoch();
@@ -69,7 +71,7 @@ const memoryCache = {
     }
     return entry.data as T;
   },
-  set<T>(key: string, data: T, ttlMs: number = 3000): void {
+  set<T extends CachedData>(key: string, data: T, ttlMs: number = 60000): void {
     const now = Date.now();
     localCache.set(key, {
       data,
@@ -153,8 +155,8 @@ export const db = {
         },
         orderBy: { name: "asc" },
       });
-      const result = dbMembers as unknown as FamilyMember[];
-      memoryCache.set(cacheKey, result, 3000);
+      const result = dbMembers as FamilyMember[];
+      memoryCache.set(cacheKey, result, 60000);
       return result;
     } catch (err) {
       console.warn("[Database] Failed to fetch members:", err);
@@ -180,7 +182,9 @@ export const db = {
           : /^\d+$/.test(String(id).trim())
             ? parseInt(String(id).trim(), 10)
             : null;
-      const orClauses: any[] = [{ customId: String(id) }];
+      const orClauses: Prisma.FamilyMemberWhereInput[] = [
+        { customId: String(id) },
+      ];
       if (numId !== null) {
         orClauses.push({ id: numId });
       }
@@ -199,9 +203,9 @@ export const db = {
           },
         },
       });
-      const result = (member as unknown as FamilyMember) || null;
+      const result = (member as FamilyMember) || null;
       if (result) {
-        memoryCache.set(cacheKey, result, 3000);
+        memoryCache.set(cacheKey, result, 60000);
       }
       return result;
     } catch (err) {
@@ -261,7 +265,7 @@ export const db = {
 
     memoryCache.invalidateAll();
 
-    return created as unknown as FamilyMember;
+    return created as FamilyMember;
   },
 
   async updateMember(
@@ -335,7 +339,7 @@ export const db = {
 
     memoryCache.invalidateAll();
 
-    return updated as unknown as FamilyMember;
+    return updated as FamilyMember;
   },
 
   async deleteMember(id: string | number): Promise<boolean> {
@@ -391,8 +395,8 @@ export const db = {
         },
         orderBy: { reportDate: "desc" },
       });
-      const result = reports as unknown as MedicalReport[];
-      memoryCache.set(cacheKey, result, 3000);
+      const result = reports as MedicalReport[];
+      memoryCache.set(cacheKey, result, 60000);
       return result;
     } catch (err) {
       console.warn("[Database] Failed to fetch reports:", err);
@@ -414,7 +418,9 @@ export const db = {
           : /^\d+$/.test(String(id).trim())
             ? parseInt(String(id).trim(), 10)
             : null;
-      const orClauses: any[] = [{ customId: String(id) }];
+      const orClauses: Prisma.MedicalReportWhereInput[] = [
+        { customId: String(id) },
+      ];
       if (numId !== null) {
         orClauses.push({ id: numId });
       }
@@ -497,14 +503,14 @@ export const db = {
         const result = {
           ...report,
           parameters: enhancedParameters,
-        } as unknown as MedicalReport;
-        memoryCache.set(cacheKey, result, 3000);
+        } as MedicalReport;
+        memoryCache.set(cacheKey, result, 60000);
         return result;
       }
 
-      const result = (report as unknown as MedicalReport) || null;
+      const result = (report as MedicalReport) || null;
       if (result) {
-        memoryCache.set(cacheKey, result, 3000);
+        memoryCache.set(cacheKey, result, 60000);
       }
       return result;
     } catch (err) {
@@ -613,7 +619,7 @@ export const db = {
     memoryCache.invalidatePrefix("member");
     memoryCache.invalidatePrefix("presets");
 
-    return dbReport as unknown as MedicalReport;
+    return dbReport as MedicalReport;
   },
 
   async deleteReportImage(imageId: string | number): Promise<boolean> {
@@ -736,8 +742,8 @@ export const db = {
         include: { familyMember: true },
         orderBy: { recordDate: "desc" },
       });
-      const result = vitals as unknown as DailyVital[];
-      memoryCache.set(cacheKey, result, 3000);
+      const result = vitals as DailyVital[];
+      memoryCache.set(cacheKey, result, 60000);
       return result;
     } catch (err) {
       console.warn("[Database] Failed to fetch vitals:", err);
@@ -791,7 +797,7 @@ export const db = {
     memoryCache.invalidatePrefix("vitals");
     memoryCache.invalidatePrefix("member");
 
-    return created as unknown as DailyVital;
+    return created as DailyVital;
   },
 
   async deleteVital(vitalId: string | number): Promise<boolean> {
@@ -852,7 +858,7 @@ export const db = {
         });
       }
 
-      const presets = dbPresets as unknown as TestPreset[];
+      const presets = dbPresets as TestPreset[];
 
       if (cleanTargetLab) {
         const sorted = [...presets].sort((a, b) => {
@@ -865,11 +871,11 @@ export const db = {
           if (aMatch !== bMatch) return bMatch - aMatch;
           return a.name.localeCompare(b.name);
         });
-        memoryCache.set(cacheKey, sorted, 10000);
+        memoryCache.set(cacheKey, sorted, 60000);
         return sorted;
       }
 
-      memoryCache.set(cacheKey, presets, 10000);
+      memoryCache.set(cacheKey, presets, 60000);
       return presets;
     } catch (err) {
       console.warn("[Database] Failed to fetch test presets:", err);
@@ -996,7 +1002,7 @@ export const db = {
       memoryCache.invalidatePrefix("reports");
       memoryCache.invalidatePrefix("report");
 
-      return updated as unknown as TestPreset;
+      return updated as TestPreset;
     }
 
     const created = await prisma.testPreset.create({
@@ -1022,7 +1028,7 @@ export const db = {
     memoryCache.invalidatePrefix("reports");
     memoryCache.invalidatePrefix("report");
 
-    return created as unknown as TestPreset;
+    return created as TestPreset;
   },
 
   async updateTestPresetById(
@@ -1079,7 +1085,7 @@ export const db = {
     memoryCache.invalidatePrefix("reports");
     memoryCache.invalidatePrefix("report");
 
-    return updated as unknown as TestPreset;
+    return updated as TestPreset;
   },
 
   async syncReportParameterWithPreset(

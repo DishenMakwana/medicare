@@ -15,11 +15,13 @@ export async function refreshAppCaches(
       onRefreshOptional();
     }
     return result;
-  } catch (err: any) {
+  } catch (err) {
+    const message =
+      err instanceof Error ? err.message : "Failed to refresh caches";
     console.error("[CacheClient] Error executing refreshAppCaches:", err);
     return {
       success: false,
-      error: err?.message || "Failed to refresh caches",
+      error: message,
     };
   }
 }

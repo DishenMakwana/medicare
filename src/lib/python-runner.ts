@@ -38,7 +38,7 @@ export async function runPythonExtraction(
     }
 
     return parsed as ExtractedReportResult;
-  } catch (error: any) {
+  } catch (error) {
     console.error("Python extraction failed:", error);
     return {
       raw_patient_name: "",
